@@ -40,7 +40,7 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
         end: 9,
         type: 'mid' as "mid" | "final"
     });
-    const [selectClassCode , setSelClassCode] = useState<string>('')
+    const [selectClassCode, setSelClassCode] = useState<string>('')
 
     const [showPicker, setShowPicker] = useState<'date' | 'start' | 'end' | null>(null);
 
@@ -50,14 +50,14 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
     useEffect(() => {
         if (visible) {
             if (selectedExam) {
-                if(!allClass.length || !selectedExam)return
-                setSelClassCode(allClass.find(c=>c.id === selectedExam.class_id)?.class_code ?? '')
-                setFormData({ 
-                    class_id : selectedExam.class_id , 
-                    date : selectedExam.date ,
-                    start : selectedExam.start ,
-                    end : selectedExam.end ,
-                    type : selectedExam.type
+                if (!allClass.length || !selectedExam) return
+                setSelClassCode(allClass.find(c => c.id === selectedExam.class_id)?.class_code ?? '')
+                setFormData({
+                    class_id: selectedExam.class_id,
+                    date: selectedExam.date,
+                    start: selectedExam.start,
+                    end: selectedExam.end,
+                    type: selectedExam.type
                 });
             } else {
                 setFormData({
@@ -130,10 +130,10 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
             }
         }
         // ห้ามเลือกวิชาซ้ำ
-        const isSame = allExam.find(ex=>allClass.find(c=>c.id === ex.class_id)?.class_code === selectClassCode && ex.type === formData.type)
-        if(isSame){
-            Alert.alert("แจ้งเตือน" , "ห้ามเลือกวิชาและประเภทการสอบซ้ำ")
-            return 
+        const isSame = allExam.find(ex => allClass.find(c => c.id === ex.class_id)?.class_code === selectClassCode && ex.type === formData.type)
+        if (isSame) {
+            Alert.alert("แจ้งเตือน", "ห้ามเลือกวิชาและประเภทการสอบซ้ำ")
+            return
         }
 
         // save
@@ -142,9 +142,9 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
             if (!auth.currentUser?.uid) return
 
             const payload = {
-                ...formData , 
-                userId : auth.currentUser.uid ,
-                class_id : allClass.find(c=>c.class_code === selectClassCode)?.id
+                ...formData,
+                userId: auth.currentUser.uid,
+                class_id: allClass.find(c => c.class_code === selectClassCode)?.id
             }
 
             await addDoc(collection(db, "users", auth.currentUser.uid, "exam"), payload)
@@ -160,33 +160,33 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
 
     const handleUpdate = async () => {
         if (!isEditing) return;
-         if (!validateData()) return
+        if (!validateData()) return
         // เชคว่าซ้ำกันมั้ย 
         const examInDay = allExam.filter(ex => ex.date === formData.date && ex.id !== selectedExam.id)
         // check overlap
         if (examInDay) {
-            const overlapExam = examInDay.find(ex => ex.start < formData.end && ex.end > formData.start  && ex.id !== selectedExam.id)
+            const overlapExam = examInDay.find(ex => ex.start < formData.end && ex.end > formData.start && ex.id !== selectedExam.id)
             if (overlapExam) {
                 Alert.alert("การแจ้งเตือน", "ห้ามเลือกเวลาสอบวนกัน")
                 return
             }
         }
-         // ห้ามเลือกวิชาซ้ำ
-        const isSame = allExam.find(ex=>allClass.find(c=>c.id === ex.class_id)?.class_code === selectClassCode && ex.type === formData.type)
-        if(isSame){
-            Alert.alert("แจ้งเตือน" , "ห้ามเลือกวิชาและประเภทการสอบซ้ำ")
-            return 
+        // ห้ามเลือกวิชาซ้ำ
+        const isSame = allExam.find(ex => allClass.find(c => c.id === ex.class_id)?.class_code === selectClassCode && ex.type === formData.type && ex.id !== selectedExam.id)
+        if (isSame) {
+            Alert.alert("แจ้งเตือน", "ห้ามเลือกวิชาและประเภทการสอบซ้ำ")
+            return
         }
         // save
         try {
             setLoading(true)
             if (!auth.currentUser?.uid) return
-             const payload = {
-                ...formData , 
-                userId : auth.currentUser.uid ,
-                class_id : allClass.find(c=>c.class_code === selectClassCode)?.id
+            const payload = {
+                ...formData,
+                userId: auth.currentUser.uid,
+                class_id: allClass.find(c => c.class_code === selectClassCode)?.id
             }
-            await setDoc(doc(db, "users", auth.currentUser.uid, "exam" , selectedExam.id), payload)
+            await setDoc(doc(db, "users", auth.currentUser.uid, "exam", selectedExam.id), payload)
 
             if (onSuccess) onSuccess()
 
@@ -217,8 +217,8 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                     onPress: async () => {
                         try {
                             setIsDeleting(true);
-                            if(!selectedExam)return
-                            await deleteDoc(doc(db, 'users', auth.currentUser!.uid, 'exam',selectedExam.id));
+                            if (!selectedExam) return
+                            await deleteDoc(doc(db, 'users', auth.currentUser!.uid, 'exam', selectedExam.id));
 
                             if (onSuccess) onSuccess();
                             onClose();
@@ -245,15 +245,43 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
         >
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
                 <View style={styles.modalContainer}>
-
-                    <Text style={styles.title}>{isEditing ? 'แก้ไขตารางสอบ' : 'เพิ่มตารางสอบ'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <Text style={styles.title}>{isEditing ? 'แก้ไขตารางสอบ' : 'เพิ่มตารางสอบ'}</Text>
+                        </View>
+                        {selectedExam && (
+                            <Pressable
+                                disabled={isDeleting}
+                                onPress={handleDeleteExam}
+                                style={({ pressed }) => ({
+                                    marginLeft: 10,
+                                    borderColor: THEME.ERROR,
+                                    borderWidth: 1,
+                                    paddingVertical: 6,     
+                                    paddingHorizontal: 12,  
+                                    borderRadius: 20,
+                                    alignItems: 'center',
+                                    justifyContent: 'center', 
+                                    opacity: pressed || isDeleting ? 0.5 : 1 
+                                })}
+                            >
+                                <Text style={{
+                                    color: THEME.ERROR,
+                                    fontFamily: 'BOLD',
+                                    fontSize: 16,
+                                }}>
+                                    {isDeleting ? 'กำลังลบ...' : 'ลบการสอบนี้'}
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
 
                     <Text style={styles.sectionLabel}>วิชาสอบ</Text>
                     <Picker
                         style={styles.input}
                         selectedValue={selectClassCode}
                         onValueChange={(itemValue) => {
-                           setSelClassCode(itemValue)
+                            setSelClassCode(itemValue)
                         }}
                     >
                         <Picker.Item label="-- กรุณาเลือก --" value="" />
@@ -309,28 +337,7 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                             <Text style={styles.timeValue}>{formatTimeDisplay(formData.end)}</Text>
                         </TouchableOpacity>
                     </View>
-                    {selectedExam && <Pressable
-                        disabled={isDeleting}
-                        onPress={handleDeleteExam}
-                        style={({ pressed }) => ({
-                            paddingVertical: 12,
-                            paddingHorizontal: 16,
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: THEME.ERROR,
-                            backgroundColor: pressed ? '#FFEBEE' : THEME.BACKGROUND,
-                            alignItems: 'center',
-                            marginTop: 24,
-                        })}
-                    >
-                        <Text style={{
-                            color: THEME.ERROR,
-                            fontFamily: 'BOLD',
-                            fontSize: 16,
-                        }}>
-                            {isDeleting ? 'กำลังลบ...' : 'ลบการสอบนี้'}
-                        </Text>
-                    </Pressable>}
+
                     {/* Action Buttons */}
                     <View style={styles.buttonRow}>
                         <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose} disabled={loading}>

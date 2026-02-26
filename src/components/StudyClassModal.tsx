@@ -11,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { db, auth } from "../../firebaseConfig";
+import DAYS_OF_WEEK from "../constants/day";
 
 interface ModalProps {
     visible: boolean;
@@ -19,7 +20,6 @@ interface ModalProps {
     selectedClass?: StudyType | null;
     allClass: StudyType[]
 }
-const DAYS_OF_WEEK = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 
 export default function StudyClassModal({ visible, onClose, onSuccess, selectedClass, allClass }: ModalProps) {
     const isEditing = !!selectedClass;
@@ -203,17 +203,17 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                             setIsDeleting(true);
 
                             await deleteDoc(doc(db, 'users', auth.currentUser!.uid, 'class', selectedClass.id));
-                            
+
                             // ลบทุกการสอบที่มี class_code ตรงกัน
                             const examRef = collection(db, 'users', auth.currentUser!.uid, 'exam');
                             const q = query(examRef, where("class_id", "==", selectedClass.id));
                             const querySnapshot = await getDocs(q);
-                            
-                            const deletePromises = querySnapshot.docs.map(document => 
+
+                            const deletePromises = querySnapshot.docs.map(document =>
                                 deleteDoc(document.ref)
                             );
                             await Promise.all(deletePromises);
-                            
+
                             if (onSuccess) onSuccess();
                             onClose();
                         } catch (err) {
@@ -241,9 +241,36 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
 
                     style={styles.modalContainer}
                 >
-                    <Text style={styles.title}>
-                        {isEditing ? "แก้ไขตารางเรียน" : "เพิ่มตารางเรียน"}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <Text style={styles.title}>
+                            {isEditing ? "แก้ไขตารางเรียน" : "เพิ่มตารางเรียน"}
+                        </Text>
+                        {selectedClass && (
+                            <Pressable
+                                disabled={isDeleting}
+                                onPress={handleDeleteClass}
+                                style={({ pressed }) => ({
+                                    marginLeft: 10,
+                                    borderColor: THEME.ERROR,
+                                    borderWidth: 1,
+                                    paddingVertical: 6,
+                                    paddingHorizontal: 12,
+                                    borderRadius: 20,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: pressed || isDeleting ? 0.5 : 1
+                                })}
+                            >
+                                <Text style={{
+                                    color: THEME.ERROR,
+                                    fontFamily: 'BOLD',
+                                    fontSize: 16,
+                                }}>
+                                    {isDeleting ? 'กำลังลบ...' : 'ลบวิชานี้'}
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
 
                     <ScrollView
                         style={styles.formScroll}
@@ -259,7 +286,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                         />
                         <TextInput
                             style={styles.input}
-                            placeholder="หมู่เรึยน เช่น 701"
+                            placeholder="หมู่เรียน เช่น 701"
                             placeholderTextColor={THEME.TEXT_SUB}
                             value={formData.sec}
                             onChangeText={(text) => handleChange('sec', text)}
@@ -335,28 +362,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                                 onChange={handleTimeChange}
                             />
                         )}
-                        {selectedClass  && <Pressable
-                            disabled={isDeleting}
-                            onPress={handleDeleteClass}
-                            style={({ pressed }) => ({
-                                paddingVertical: 12,
-                                paddingHorizontal: 16,
-                                borderRadius: 8,
-                                borderWidth: 1,
-                                borderColor: THEME.ERROR,
-                                backgroundColor: pressed ? '#FFEBEE' : THEME.BACKGROUND,
-                                alignItems: 'center',
-                                marginTop: 24,
-                            })}
-                        >
-                            <Text style={{
-                                color: THEME.ERROR,
-                                fontFamily: 'BOLD',
-                                fontSize: 16,
-                            }}>
-                                {isDeleting ? 'กำลังลบ...' : 'ลบวิชานี้'}
-                            </Text>
-                        </Pressable>}
+
                     </ScrollView>
 
                     {/* Action Buttons */}

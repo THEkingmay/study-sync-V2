@@ -8,7 +8,7 @@ import { useFonts, Prompt_400Regular, Prompt_600SemiBold } from '@expo-google-fo
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 
-export type RootStackParamsLists = {
+export type RootTabsParamsLists = {
   auth: undefined;
   dashboard: undefined;
   timetable: undefined;
@@ -24,7 +24,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import THEME from './theme';
 import { ActivityIndicator, View ,Text} from 'react-native';
 
-const Tab = createBottomTabNavigator<RootStackParamsLists>();
+const Tab = createBottomTabNavigator<RootTabsParamsLists>();
 
 export default function App() {
   let [fontsLoaded] = useFonts({

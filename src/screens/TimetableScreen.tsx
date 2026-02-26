@@ -112,7 +112,7 @@ export default function TimetableScreen() {
                                     <Text style={styles.timeStart}>{formatTimeDisplay(cls.start)}</Text>
                                     <Text style={styles.timeEnd}>{formatTimeDisplay(cls.end)}</Text>
                                 </View>
-                                
+
                                 <View style={styles.timelineDivider}>
                                     <View style={styles.timelineDot} />
                                     {index !== classesForDay.length - 1 && <View style={styles.timelineLine} />}
@@ -156,7 +156,11 @@ export default function TimetableScreen() {
                                 onPress={() => { setIsOpenModal({ study: false, exam: true }); setSelExam(ex); }}
                                 style={({ pressed }) => [styles.timelineRow, pressed && styles.pressedState]}
                             >
-                                <View style={styles.timeCol}>
+                                <View style={{
+                                    width: 80,
+                                    alignItems: 'flex-end',
+                                    paddingTop: 2
+                                }}>
                                     <Text style={styles.examDate}>{ex.date}</Text>
                                     <Text style={styles.timeStart}>{formatTimeDisplay(ex.start)}</Text>
                                     <Text style={styles.timeEnd}>{formatTimeDisplay(ex.end)}</Text>
@@ -250,9 +254,9 @@ export default function TimetableScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: '#FAFAFC' 
+    container: {
+        flex: 1,
+        backgroundColor: '#FAFAFC'
     },
     headerContainer: {
         flexDirection: 'row',
@@ -282,33 +286,33 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 4,
     },
-    switchBtn: { 
-        flex: 1, 
-        paddingVertical: 10, 
-        alignItems: 'center', 
-        borderRadius: 10 
+    switchBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 10
     },
-    switchBtnActive: { 
-        backgroundColor: '#FFFFFF', 
-        shadowColor: '#000', 
+    switchBtnActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08, 
-        shadowRadius: 4, 
-        elevation: 2 
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2
     },
-    switchText: { 
-        fontSize: 15, 
-        color: '#737373', 
+    switchText: {
+        fontSize: 15,
+        color: '#737373',
         fontFamily: 'REGULAR',
     },
-    switchTextActive: { 
-        color: '#1A1A1A', 
+    switchTextActive: {
+        color: '#1A1A1A',
         fontFamily: 'BOLD',
     },
-    addBtn: { 
-        backgroundColor: THEME.PRIMARY, 
-        paddingHorizontal: 18, 
-        paddingVertical: 10, 
+    addBtn: {
+        backgroundColor: THEME.PRIMARY,
+        paddingHorizontal: 18,
+        paddingVertical: 10,
         borderRadius: 20,
         shadowColor: THEME.PRIMARY,
         shadowOffset: { width: 0, height: 4 },
@@ -316,62 +320,64 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
         elevation: 4,
     },
-    addBtnText: { 
-        color: '#FFFFFF', 
+    addBtnText: {
+        color: '#FFFFFF',
         fontFamily: 'BOLD',
-        fontSize: 14 
+        fontSize: 14
     },
-    listContent: { 
+    listContent: {
         paddingHorizontal: 20,
         paddingTop: 24,
-        paddingBottom: 80 
+        paddingBottom: 80
     },
-    emptyText: { 
-        textAlign: 'center', 
-        color: '#A0A0A0', 
-        marginTop: 60, 
+    emptyText: {
+        textAlign: 'center',
+        color: '#A0A0A0',
+        marginTop: 60,
         fontSize: 16,
         fontFamily: 'REGULAR',
     },
-    dayBlock: { 
-        marginBottom: 36 
+    dayBlock: {
+        marginBottom: 36,
+        borderBottomWidth: 0.5,
+        borderBottomColor: THEME.SECONDARY
     },
-    dayHeading: { 
-        fontSize: 20, 
+    dayHeading: {
+        fontSize: 20,
         fontFamily: 'BOLD',
-        color: '#1A1A1A', 
-        marginBottom: 16, 
-        letterSpacing: -0.5 
+        color: '#1A1A1A',
+        marginBottom: 16,
+        letterSpacing: -0.5
     },
-    timelineRow: { 
-        flexDirection: 'row', 
-        marginBottom: 20 
+    timelineRow: {
+        flexDirection: 'row',
+        marginBottom: 20
     },
-    pressedState: { 
+    pressedState: {
         opacity: 0.7,
         transform: [{ scale: 0.98 }]
     },
-    timeCol: { 
-        width: 50, 
-        alignItems: 'flex-end', 
-        paddingTop: 2 
+    timeCol: {
+        width: 50,
+        alignItems: 'flex-end',
+        paddingTop: 2
     },
-    timeStart: { 
-        fontSize: 14, 
+    timeStart: {
+        fontSize: 14,
         fontFamily: 'BOLD',
-        color: '#1A1A1A' 
+        color: '#1A1A1A'
     },
-    timeEnd: { 
-        fontSize: 12, 
-        color: '#8E8E93', 
+    timeEnd: {
+        fontSize: 12,
+        color: '#8E8E93',
         marginTop: 4,
         fontFamily: 'REGULAR',
     },
-    examDate: { 
-        fontSize: 12, 
+    examDate: {
+        fontSize: 12,
         fontFamily: 'BOLD',
-        color: THEME.PRIMARY, 
-        marginBottom: 6 
+        color: THEME.PRIMARY,
+        marginBottom: 6
     },
     timelineDivider: {
         width: 24,
@@ -395,9 +401,9 @@ const styles = StyleSheet.create({
         marginTop: 4,
         marginBottom: -24,
     },
-    contentCol: { 
-        flex: 1, 
-        padding: 16, 
+    contentCol: {
+        flex: 1,
+        padding: 16,
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
         shadowColor: '#000',
@@ -408,16 +414,16 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#F0F0F0',
     },
-    studyContent: { 
+    studyContent: {
         borderLeftWidth: 4,
         borderLeftColor: THEME.PRIMARY,
     },
-    midContent: { 
+    midContent: {
         borderLeftWidth: 4,
         borderLeftColor: '#FF922B',
         backgroundColor: '#FFFDF9',
     },
-    finalContent: { 
+    finalContent: {
         borderLeftWidth: 4,
         borderLeftColor: '#FA5252',
         backgroundColor: '#FFF9F9',
@@ -439,11 +445,11 @@ const styles = StyleSheet.create({
         fontFamily: 'BOLD',
         color: '#666666',
     },
-    examHeader: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: 8 
+    examHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8
     },
     examBadge: {
         paddingHorizontal: 8,
@@ -452,36 +458,36 @@ const styles = StyleSheet.create({
     },
     midBadge: { backgroundColor: '#FFF0E0' },
     finalBadge: { backgroundColor: '#FFE5E5' },
-    subjectCode: { 
-        fontSize: 14, 
+    subjectCode: {
+        fontSize: 14,
         fontFamily: 'BOLD',
         color: '#4A4A4A',
     },
-    subjectName: { 
-        fontSize: 15, 
+    subjectName: {
+        fontSize: 15,
         fontFamily: 'BOLD',
-        color: '#1A1A1A', 
-        lineHeight: 22, 
-        marginBottom: 10 
+        color: '#1A1A1A',
+        lineHeight: 22,
+        marginBottom: 10
     },
     detailRow: {
         flexDirection: 'column',
         gap: 4,
     },
-    detailText: { 
-        fontSize: 13, 
+    detailText: {
+        fontSize: 13,
         color: '#666666',
         fontFamily: 'REGULAR',
     },
-    examType: { 
-        fontSize: 12, 
+    examType: {
+        fontSize: 12,
         fontFamily: 'BOLD',
     },
     midText: { color: '#E8590C' },
     finalText: { color: '#C92A2A' },
-    centerBox: { 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center' 
+    centerBox: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
     }
 });
