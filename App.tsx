@@ -94,6 +94,7 @@ export default function App() {
             borderTopWidth: 0,
             elevation: 20,
             borderWidth: 0.5,
+            borderColor : '#6b6b6b' ,
             shadowColor: THEME.PRIMARY,
             shadowOpacity: 0.12,
             shadowOffset: { width: 0, height: -5 },

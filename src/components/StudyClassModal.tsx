@@ -2,14 +2,15 @@ import React, { useState, useEffect } from "react";
 import {
     Modal, Text, View, StyleSheet, TouchableOpacity,
     TextInput, KeyboardAvoidingView, Platform, ScrollView,
-    Alert
+    Alert,
+    Pressable
 } from "react-native";
 import THEME from "../../theme";
 import type { StudyType } from "../screens/TimetableScreen";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
-import { addDoc, collection, doc, setDoc } from "firebase/firestore";
-import { db , auth } from "../../firebaseConfig";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { db, auth } from "../../firebaseConfig";
 
 interface ModalProps {
     visible: boolean;
@@ -27,13 +28,15 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
         class_code: '',
         class_name: '',
         room: '',
-        sec : '' ,
+        sec: '',
         professor_name: '',
         day: 'จันทร์',
         start: 8.0,
         end: 9.0
     });
     const [isSaving, setIsSaving] = useState<boolean>(false)
+    const [isDeleting, setIsDeleting] = useState<boolean>(false)
+
     // State สำหรับควบคุมการแสดงผล Time Picker
     const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
 
@@ -48,12 +51,12 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                     day: selectedClass.day,
                     start: selectedClass.start,
                     end: selectedClass.end,
-                    sec : selectedClass.sec
+                    sec: selectedClass.sec
                 });
             } else {
                 setFormData({
                     class_code: '', class_name: '', room: '',
-                    professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0 ,sec : ''
+                    professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0, sec: ''
                 });
             }
         }
@@ -94,7 +97,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
             return
         }
         // validate exit class code 
-        const exitClass = allClass.find(c => c.class_code === formData.class_code && c.sec === formData.sec )
+        const exitClass = allClass.find(c => c.class_code === formData.class_code && c.sec === formData.sec)
         if (exitClass) {
             Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาและหมู่ซ้ำได้')
             return
@@ -108,20 +111,20 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
 
         try {
             setIsSaving(true)
-            if(!auth.currentUser?.uid) {
+            if (!auth.currentUser?.uid) {
                 throw new Error("ไม่พบบัญชีผู้ใช้")
             }
-            await addDoc(collection(db, 'users' , auth.currentUser.uid ,'class') ,{
-                ...formData ,
-                userId : auth.currentUser.uid
+            await addDoc(collection(db, 'users', auth.currentUser.uid, 'class'), {
+                ...formData,
+                userId: auth.currentUser.uid
             })
             setFormData({
                 class_code: '', class_name: '', room: '',
-                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0 ,
-                sec :''
+                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0,
+                sec: ''
             });
 
-            if(onSuccess) onSuccess()
+            if (onSuccess) onSuccess()
 
         } catch (err) {
             Alert.alert("เกิดข้อผิดพลาด", (err as Error).message)
@@ -130,7 +133,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
         }
     };
 
-    const handleUpdate = async () =>{
+    const handleUpdate = async () => {
         if (!formData.class_code || !formData.class_name) {
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกรหัสวิชาและชื่อวิชา')
             return
@@ -154,21 +157,21 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
         }
         try {
             setIsSaving(true)
-            if(!auth.currentUser?.uid) {
+            if (!auth.currentUser?.uid) {
                 throw new Error("ไม่พบบัญชีผู้ใช้")
             }
-            if(!selectedClass?.id) return 
-            await setDoc(doc(db, 'users' , auth.currentUser.uid ,'class' , selectedClass.id) ,{
-                ...formData ,
-                userId : auth.currentUser.uid
+            if (!selectedClass?.id) return
+            await setDoc(doc(db, 'users', auth.currentUser.uid, 'class', selectedClass.id), {
+                ...formData,
+                userId: auth.currentUser.uid
             })
             setFormData({
                 class_code: '', class_name: '', room: '',
-                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0 ,
-                sec :''
+                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0,
+                sec: ''
             });
 
-            if(onSuccess) onSuccess()
+            if (onSuccess) onSuccess()
 
         } catch (err) {
             Alert.alert("เกิดข้อผิดพลาด", (err as Error).message)
@@ -176,6 +179,54 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
             setIsSaving(false)
         }
     }
+
+    const handleDeleteClass = () => {
+        if (!selectedClass?.id) return;
+        if (!auth.currentUser?.uid) {
+            Alert.alert("ข้อผิดพลาด", "ไม่พบบัญชีผู้ใช้");
+            return;
+        }
+
+        Alert.alert(
+            "ยืนยันการลบ",
+            `คุณแน่ใจหรือไม่ว่าต้องการลบวิชา ${selectedClass.class_name}?\nข้อมูลที่ลบแล้วไม่สามารถกู้คืนได้`,
+            [
+                {
+                    text: "ยกเลิก",
+                    style: "cancel"
+                },
+                {
+                    text: "ลบวิชาเรียน",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setIsDeleting(true);
+
+                            await deleteDoc(doc(db, 'users', auth.currentUser!.uid, 'class', selectedClass.id));
+                            
+                            // ลบทุกการสอบที่มี class_code ตรงกัน
+                            const examRef = collection(db, 'users', auth.currentUser!.uid, 'exam');
+                            const q = query(examRef, where("class_id", "==", selectedClass.id));
+                            const querySnapshot = await getDocs(q);
+                            
+                            const deletePromises = querySnapshot.docs.map(document => 
+                                deleteDoc(document.ref)
+                            );
+                            await Promise.all(deletePromises);
+                            
+                            if (onSuccess) onSuccess();
+                            onClose();
+                        } catch (err) {
+                            Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถลบข้อมูลได้ในขณะนี้");
+                            console.error("Delete Error: ", err);
+                        } finally {
+                            setIsDeleting(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
     return (
         <Modal
             visible={visible}
@@ -284,6 +335,28 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                                 onChange={handleTimeChange}
                             />
                         )}
+                        {selectedClass  && <Pressable
+                            disabled={isDeleting}
+                            onPress={handleDeleteClass}
+                            style={({ pressed }) => ({
+                                paddingVertical: 12,
+                                paddingHorizontal: 16,
+                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderColor: THEME.ERROR,
+                                backgroundColor: pressed ? '#FFEBEE' : THEME.BACKGROUND,
+                                alignItems: 'center',
+                                marginTop: 24,
+                            })}
+                        >
+                            <Text style={{
+                                color: THEME.ERROR,
+                                fontFamily: 'BOLD',
+                                fontSize: 16,
+                            }}>
+                                {isDeleting ? 'กำลังลบ...' : 'ลบวิชานี้'}
+                            </Text>
+                        </Pressable>}
                     </ScrollView>
 
                     {/* Action Buttons */}
