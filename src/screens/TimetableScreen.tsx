@@ -4,8 +4,8 @@ import THEME from "../../theme";
 import { db, auth } from "../../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 import { SafeAreaView } from "react-native-safe-area-context";
-import StudyClassModal from "../components/StudyClassModal";
-import ExamModal from "../components/ExamModal";
+import StudyClassModal from "../components/timetable/StudyClassModal";
+import ExamModal from "../components/timetable/ExamModal";
 
 export type StudyType = {
     id: string;
@@ -28,7 +28,7 @@ export type ExamType = {
     end: number;
     type: 'mid' | 'final'
     userId: string;
-    room : string ,
+    room: string,
 };
 
 const DAYS_OF_WEEK = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
@@ -69,16 +69,16 @@ export default function TimetableScreen() {
             id: doc.id,
             ...doc.data()
         } as ExamType));
-        const ex = examData.sort((a,b)=>{
-            const [aDay , aMonth ,aYear] = a.date.split('/')
-            const aMill = new Date(Number(aYear) , Number(aMonth)-1 , Number(aDay)).setHours(0,0,0,0)
+        const ex = examData.sort((a, b) => {
+            const [aDay, aMonth, aYear] = a.date.split('/')
+            const aMill = new Date(Number(aYear), Number(aMonth) - 1, Number(aDay)).setHours(0, 0, 0, 0)
 
-            const [bDay , bMonth ,bYear] = b.date.split('/')
-            const bMill = new Date(Number(bYear) , Number(bMonth)-1 , Number(bDay)).setHours(0,0,0,0)
-        
+            const [bDay, bMonth, bYear] = b.date.split('/')
+            const bMill = new Date(Number(bYear), Number(bMonth) - 1, Number(bDay)).setHours(0, 0, 0, 0)
+
             return aMill - bMill;
 
-        }) 
+        })
         setExam(ex);
     };
 
@@ -204,10 +204,11 @@ export default function TimetableScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.headerContainer}>
-                <Text style={styles.headerTitle}>ตารางของฉัน</Text>
+                <Text style={styles.headerTitle}>จัดการตารางเวลา</Text>
                 <TouchableOpacity
                     style={styles.addBtn}
-                    onPress={() => setIsOpenModal({ study: selectMode === 'study', exam: selectMode === 'exam' })}
+                    activeOpacity={0.8}
+                    onPress={() => {selectMode === 'study' ? setIsOpenModal({ study: true, exam: false }) : setIsOpenModal({ study: false, exam: true });}}
                 >
                     <Text style={styles.addBtnText}>+ เพิ่มข้อมูล</Text>
                 </TouchableOpacity>
@@ -217,11 +218,13 @@ export default function TimetableScreen() {
                 <View style={styles.switcher}>
                     <TouchableOpacity
                         style={[styles.switchBtn, selectMode === 'study' && styles.switchBtnActive]}
+                        activeOpacity={0.9}
                         onPress={() => setSelectMode('study')}
                     >
                         <Text style={[styles.switchText, selectMode === 'study' && styles.switchTextActive]}>ตารางเรียน</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                        activeOpacity={0.9}
                         style={[styles.switchBtn, selectMode === 'exam' && styles.switchBtnActive]}
                         onPress={() => setSelectMode('exam')}
                     >
@@ -267,74 +270,68 @@ export default function TimetableScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFC'
+        backgroundColor: THEME.BACKGROUND,
     },
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 8,
-        backgroundColor: '#FAFAFC',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
     },
     headerTitle: {
-        fontSize: 28,
         fontFamily: 'BOLD',
-        color: '#1A1A1A',
-        letterSpacing: -0.5,
+        fontSize: 24,
+        color: THEME.TEXT_MAIN,
+    },
+    addBtn: {
+        backgroundColor: THEME.PRIMARY,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        shadowColor: THEME.PRIMARY,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    addBtnText: {
+        fontFamily: 'BOLD',
+        color: '#FFFFFF',
+        fontSize: 14,
     },
     topNav: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: '#FAFAFC',
-        borderBottomWidth: 1,
-        borderColor: '#EFEFEF',
+        paddingHorizontal: 20,
+        marginBottom: 16,
     },
     switcher: {
         flexDirection: 'row',
-        backgroundColor: '#EEEEF0',
-        borderRadius: 12,
+        backgroundColor: THEME.CARD_BG,
+        borderRadius: 25,
         padding: 4,
     },
     switchBtn: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 10
+        borderRadius: 21,
     },
     switchBtnActive: {
         backgroundColor: '#FFFFFF',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
     },
     switchText: {
-        fontSize: 15,
-        color: '#737373',
         fontFamily: 'REGULAR',
+        fontSize: 14,
+        color: THEME.TEXT_SUB,
     },
     switchTextActive: {
-        color: '#1A1A1A',
         fontFamily: 'BOLD',
-    },
-    addBtn: {
-        backgroundColor: THEME.PRIMARY,
-        paddingHorizontal: 18,
-        paddingVertical: 10,
-        borderRadius: 20,
-        shadowColor: THEME.PRIMARY,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 4,
-    },
-    addBtnText: {
-        color: '#FFFFFF',
-        fontFamily: 'BOLD',
-        fontSize: 14
+        color: THEME.PRIMARY,
     },
     listContent: {
         paddingHorizontal: 20,
@@ -502,3 +499,5 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     }
 });
+
+export { styles }

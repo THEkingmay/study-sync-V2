@@ -39,7 +39,7 @@ interface ExamTypeDashboard {
   room: string,
   start: number,
   end: number,
-  type: string, 
+  type: string,
   dayleft: number
 }
 
@@ -83,7 +83,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
       const today = new Date()
       const todayIndex = today.getDay()
-      
+
       const classWithDayAhead = allClasss.map(cls => {
         const clsDayIndex = DAYS_OF_WEEK.findIndex(d => d === cls.day)
         let dayAhead = clsDayIndex - todayIndex
@@ -163,7 +163,7 @@ export default function DashboardScreen({ navigation }: Props) {
   };
 
   const [lastTimeCheck, setLastTimeCheck] = useState<string>('');
-  
+
   const getTimeNow = () => {
     const today = new Date();
 
@@ -208,11 +208,18 @@ export default function DashboardScreen({ navigation }: Props) {
               <SkeletonItem width={220} height={20} />
             </>
           ) : (
-            <>
+            <View>
               <Text style={styles.greeting}>สวัสดี, {userName || "ผู้ใช้งาน"}</Text>
               <Text style={styles.subtitle}>{lastTimeCheck}</Text>
-            </>
+            </View>
           )}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => navigation.navigate('planner')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.fabIcon}>+</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -283,7 +290,7 @@ export default function DashboardScreen({ navigation }: Props) {
                     <View style={styles.countdownContainer}>
                       <Text style={[
                         styles.countdownNumber,
-                        { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY } 
+                        { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY }
                       ]}>
                         {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
                       </Text>
@@ -304,13 +311,6 @@ export default function DashboardScreen({ navigation }: Props) {
 
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('planner')}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -325,6 +325,9 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 32,
     marginTop: 16,
     minHeight: 60,
@@ -456,9 +459,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   fab: {
-    position: "absolute",
-    top:40 ,
-    right : 10,
     width: 60,
     height: 60,
     borderRadius: 30,

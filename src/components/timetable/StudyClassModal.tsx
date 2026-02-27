@@ -5,13 +5,13 @@ import {
     Alert,
     Pressable
 } from "react-native";
-import THEME from "../../theme";
-import type { StudyType } from "../screens/TimetableScreen";
+import THEME from "../../../theme";
+import type { StudyType } from "../../screens/TimetableScreen";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
-import { db, auth } from "../../firebaseConfig";
-import DAYS_OF_WEEK from "../constants/day";
+import { db, auth } from "../../../firebaseConfig";
+import DAYS_OF_WEEK from "../../constants/day";
 
 interface ModalProps {
     visible: boolean;

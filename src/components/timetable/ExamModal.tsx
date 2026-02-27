@@ -6,11 +6,11 @@ import {
     Pressable
 } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ExamType, StudyType } from "../screens/TimetableScreen";
-import THEME from "../../theme";
+import { ExamType, StudyType } from "../../screens/TimetableScreen";
+import THEME from "../../../theme";
 import { Picker } from "@react-native-picker/picker";
 import { addDoc, collection, deleteDoc, doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../../firebaseConfig";
+import { auth, db } from "../../../firebaseConfig";
 
 
 interface ModalProps {
