@@ -32,6 +32,17 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }: any) => {
   );
 };
 
+interface ExamTypeDashboard {
+  id: string,
+  class_name: string,
+  date: string,
+  room: string,
+  start: number,
+  end: number,
+  type: string, 
+  dayleft: number
+}
+
 type Props = NativeBottomTabScreenProps<RootTabsParamsLists>
 
 export default function DashboardScreen({ navigation }: Props) {
@@ -43,7 +54,7 @@ export default function DashboardScreen({ navigation }: Props) {
   const [userName, setUserName] = useState<string>('');
   const [nextClass, setNextClass] = useState<Partial<StudyType> | null>(null)
 
-  const [sevenDaysExams , setSevenDaysExam] = useState<Partial<ExamType>[]>([])
+  const [sevenDaysExams, setSevenDaysExam] = useState<Partial<ExamTypeDashboard>[]>([])
 
   const fetchNUserName = async (isActive: boolean) => {
     setLoadingUser(true);
@@ -69,28 +80,22 @@ export default function DashboardScreen({ navigation }: Props) {
         id: doc.id,
         ...doc.data()
       } as StudyType));
-      // เชคว่าวันนนี้คือ index เท่าไรใน DAY_OF_WEEK จากนั้นเอาทุกวิชามาวนลูปเพื่อจัดตำแหน่งใหม่ โดยใช้ index เทียบกัน 
-      // เช่น วันนี้วัน พฤ คือ index = 4 จะได้วิชาวันอังคารคือวัน 2 จากนั้นเอาวิชาปลายทางลบปัจจุบันจะได้ระยะห่างจากปัจจุบัน
-      // เช่น จากวันอังคารถึง พฤ ห่างทั้งหมด 2 - 4 = -2 หากน้อยกว่า 0 ต้องบวก 7 จะได้จำนวนวันที่ห่างจริงๆ -2 + 7 = 5 วัน
-      // หากเป็น 0 ก็คือเดียวกัน ให้ดูว่าเวลาเริ่มของวิชานั้นกับเวลาปัจจุบันผ่านไปหรือยัง ถ้าผ่านไปแล้วให้รอไปเรียนสัปดาห์หน้าเลย + 7 
-      // เรียงกัน หาก จำนวนวันเท่ากันให้ใส่วิชาที่เรียนก่อน จากนั้น ดึงตำแหน่งแรกไปแสดงเป็น วิชาที่จะถึง
 
       const today = new Date()
       const todayIndex = today.getDay()
-      // ลูปหาวันที่จะถึง
+      
       const classWithDayAhead = allClasss.map(cls => {
         const clsDayIndex = DAYS_OF_WEEK.findIndex(d => d === cls.day)
-
         let dayAhead = clsDayIndex - todayIndex
 
-        if (dayAhead === 0) { // ถ้าเป็นวันเดียวกันใหดูเวลาเริ่มว่าผ่านไปยัง 
+        if (dayAhead === 0) {
           const hours = String(today.getHours()).padStart(2, '0');
           const minutes = String(today.getMinutes()).padStart(2, '0');
           const currentTime = Number(hours + '.' + minutes)
-          if (cls.start < currentTime) {   // ผ่านไปแล้วให้รอไปสัปดาห์หน้าเลย
+          if (cls.start < currentTime) {
             dayAhead += 7
           }
-        } else if (dayAhead < 0) { // เลยวันไปแล้ว
+        } else if (dayAhead < 0) {
           dayAhead += 7
         }
 
@@ -100,9 +105,7 @@ export default function DashboardScreen({ navigation }: Props) {
         }
       })
 
-      // เอามาเรียงกัน
       const sortClass = classWithDayAhead.sort((a, b) => {
-        // หากระยะห่างวันเท่ากัน ให้เรียงตามเวลาที่เริ่มเรียน (จากน้อยไปมาก)
         if (a.dayAhead === b.dayAhead) {
           return a.start - b.start;
         }
@@ -118,14 +121,49 @@ export default function DashboardScreen({ navigation }: Props) {
   const fetchExamIn7days = async (isActive: boolean) => {
     setLoadingExams(true);
     try {
+      const uid = auth.currentUser?.uid
+      if (!uid) return null
 
-      await new Promise(r => setTimeout(r, 700));
+      const classSnap = await getDocs(collection(db, 'users', uid, 'class'));
+      const allClass: StudyType[] = classSnap.docs.map(cls => ({ id: cls.id, ...cls.data() } as StudyType))
+
+      const examSnap = await getDocs(collection(db, 'users', uid, 'exam'))
+      const tmp: ExamTypeDashboard[] = examSnap.docs.map(ex => ({
+        id: ex.id,
+        ...ex.data()
+      } as ExamType)).map(ex => ({
+        id: ex.id,
+        class_name: allClass.find(c => ex.class_id === c.id)?.class_name ?? 'ไม่พบชื่อวิชา',
+        start: ex.start,
+        end: ex.end,
+        room: ex.room ?? 'ไม่ระบุห้องสอบ',
+        type: ex.type,
+        date: ex.date,
+        dayleft: 0
+      }))
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const filterExam = tmp.map(ex => {
+        const [day, month, year] = ex.date.split('/')
+        const examDay = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)
+
+        const ONE_DAY_MILLI = 24 * 60 * 60 * 1000
+        const dayleft = (examDay - today.getTime()) / ONE_DAY_MILLI
+        return { ...ex, dayleft }
+      }).filter(ex => ex.dayleft >= 0 && ex.dayleft <= 7)
+        .sort((a, b) => a.dayleft - b.dayleft);
+
+      setSevenDaysExam(filterExam)
+
     } finally {
       if (isActive) setLoadingExams(false);
     }
   };
 
   const [lastTimeCheck, setLastTimeCheck] = useState<string>('');
+  
   const getTimeNow = () => {
     const today = new Date();
 
@@ -151,7 +189,6 @@ export default function DashboardScreen({ navigation }: Props) {
       fetchNUserName(isActive);
       fetchNextClass(isActive);
       fetchExamIn7days(isActive);
-
       getTimeNow()
 
       return () => {
@@ -164,7 +201,6 @@ export default function DashboardScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* Header Section */}
         <View style={styles.header}>
           {loadingUser ? (
             <>
@@ -179,7 +215,6 @@ export default function DashboardScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* Next Class Card */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>วิชาถัดไป</Text>
           {loadingClass ? (
@@ -201,15 +236,14 @@ export default function DashboardScreen({ navigation }: Props) {
               <Text style={styles.location}>ห้อง {nextClass.room}</Text>
             </View>
           ) : (
-            <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, alignItems: 'center', paddingVertical: 32, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
-              <Text style={{ fontFamily: "REGULAR", fontSize: 16, color: THEME.TEXT_SUB }}>
+            <View style={[styles.card, styles.emptyCard]}>
+              <Text style={styles.emptyStateText}>
                 ไม่พบวิชาเรียน
               </Text>
             </View>
           )}
         </View>
 
-        {/* Upcoming Exams List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>สอบใน 7 วันนี้</Text>
           {loadingExams ? (
@@ -230,34 +264,46 @@ export default function DashboardScreen({ navigation }: Props) {
                 <SkeletonItem width={40} height={20} />
               </View>
             </View>
-          ) : (
+          ) : sevenDaysExams.length > 0 ? (
             <View style={styles.card}>
-              {/* Exam Item 1 */}
-              <View style={styles.examRow}>
-                <View style={styles.examInfo}>
-                  <Text style={styles.examName}>Algorithm Design</Text>
-                  <Text style={styles.examDate}>พรุ่งนี้, 09:00 น.</Text>
-                </View>
-                <Text style={styles.daysLeftText}>1 วัน</Text>
-              </View>
+              {sevenDaysExams.map((ex, index) => (
+                <View key={ex.id}>
+                  <View style={styles.examRow}>
+                    <View style={styles.examInfo}>
+                      <View style={styles.examHeaderGroup}>
+                        <View style={styles.examTypeBadge}>
+                          <Text style={styles.examTypeBadgeText}>{ex.type}</Text>
+                        </View>
+                        <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
+                      </View>
+                      <Text style={styles.examDetailText}>วันที่ {ex.date} | เวลา {ex.start} - {ex.end} น.</Text>
+                      <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
+                    </View>
 
-              <View style={styles.divider} />
+                    <View style={styles.countdownContainer}>
+                      <Text style={[
+                        styles.countdownNumber,
+                        { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY } 
+                      ]}>
+                        {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
+                      </Text>
+                      {ex.dayleft !== 0 && <Text style={styles.countdownLabel}>วัน</Text>}
+                    </View>
+                  </View>
 
-              {/* Exam Item 2 */}
-              <View style={styles.examRow}>
-                <View style={styles.examInfo}>
-                  <Text style={styles.examName}>Software Engineering</Text>
-                  <Text style={styles.examDate}>28 ก.พ., 13:00 น.</Text>
+                  {index < sevenDaysExams.length - 1 && <View style={styles.divider} />}
                 </View>
-                <Text style={[styles.daysLeftText, { color: THEME.TEXT_SUB }]}>5 วัน</Text>
-              </View>
+              ))}
+            </View>
+          ) : (
+            <View style={[styles.card, styles.emptyCard]}>
+              <Text style={styles.emptyStateText}>ไม่พบวิชาสอบในช่วง 7 วันข้างหน้า</Text>
             </View>
           )}
         </View>
 
       </ScrollView>
 
-      {/* Floating Action Button (Quick Add) */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('planner')}
@@ -281,7 +327,7 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 32,
     marginTop: 16,
-    minHeight: 60, // กำหนดความสูงขั้นต่ำ ป้องกัน Layout Shift เวลาข้อมูลเปลี่ยน
+    minHeight: 60,
   },
   greeting: {
     fontFamily: "BOLD",
@@ -308,9 +354,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     minHeight: 120,
+    justifyContent: 'center',
   },
   primaryCard: {
     backgroundColor: THEME.SECONDARY,
+    justifyContent: 'flex-start',
+  },
+  emptyCard: {
+    backgroundColor: THEME.CARD_BG,
+    alignItems: 'center',
+    paddingVertical: 32,
+    minHeight: 100,
+  },
+  emptyStateText: {
+    fontFamily: "REGULAR",
+    fontSize: 16,
+    color: THEME.TEXT_SUB,
+    textAlign: 'center',
   },
   cardHeader: {
     flexDirection: "row",
@@ -343,21 +403,52 @@ const styles = StyleSheet.create({
   examInfo: {
     flex: 1,
   },
+  examHeaderGroup: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  examTypeBadge: {
+    backgroundColor: THEME.PRIMARY + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  examTypeBadgeText: {
+    fontFamily: "BOLD",
+    fontSize: 10,
+    color: THEME.PRIMARY,
+  },
   examName: {
     fontFamily: "BOLD",
     fontSize: 16,
     color: THEME.TEXT_MAIN,
     marginBottom: 2,
   },
-  examDate: {
+  examDetailText: {
     fontFamily: "REGULAR",
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.TEXT_SUB,
+    marginBottom: 2,
   },
-  daysLeftText: {
+  countdownContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
+    backgroundColor: THEME.BACKGROUND,
+    padding: 8,
+    borderRadius: 12,
+  },
+  countdownNumber: {
     fontFamily: "BOLD",
-    fontSize: 14,
-    color: THEME.ERROR,
+    fontSize: 20,
+    lineHeight: 28,
+  },
+  countdownLabel: {
+    fontFamily: "REGULAR",
+    fontSize: 12,
+    color: THEME.TEXT_SUB,
   },
   divider: {
     height: 1,
@@ -366,8 +457,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 110,
-    right: 30,
+    top:40 ,
+    right : 10,
     width: 60,
     height: 60,
     borderRadius: 30,

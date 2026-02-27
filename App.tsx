@@ -88,11 +88,11 @@ export default function App() {
 
           tabBarStyle: {
             position: 'absolute',
-            backgroundColor: '#ffffff',
+            backgroundColor:"#fff",
             borderTopLeftRadius: 35,
             borderTopRightRadius: 35,
             borderTopWidth: 0,
-            elevation: 20,
+            elevation: 5,
             borderWidth: 0.5,
             borderColor : '#6b6b6b' ,
             shadowColor: THEME.PRIMARY,

@@ -38,6 +38,7 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
         date: '',
         start: 8,
         end: 9,
+        room: '',
         type: 'mid' as "mid" | "final"
     });
     const [selectClassCode, setSelClassCode] = useState<string>('')
@@ -57,7 +58,8 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                     date: selectedExam.date,
                     start: selectedExam.start,
                     end: selectedExam.end,
-                    type: selectedExam.type
+                    type: selectedExam.type,
+                    room: selectedExam.room
                 });
             } else {
                 setFormData({
@@ -65,7 +67,8 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                     date: '',
                     start: 8,
                     end: 9,
-                    type: 'mid'
+                    type: 'mid',
+                    room: ''
                 });
             }
         }
@@ -257,12 +260,12 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                                     marginLeft: 10,
                                     borderColor: THEME.ERROR,
                                     borderWidth: 1,
-                                    paddingVertical: 6,     
-                                    paddingHorizontal: 12,  
+                                    paddingVertical: 6,
+                                    paddingHorizontal: 12,
                                     borderRadius: 20,
                                     alignItems: 'center',
-                                    justifyContent: 'center', 
-                                    opacity: pressed || isDeleting ? 0.5 : 1 
+                                    justifyContent: 'center',
+                                    opacity: pressed || isDeleting ? 0.5 : 1
                                 })}
                             >
                                 <Text style={{
@@ -291,10 +294,7 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                             )
                         }
                     </Picker>
-
-
                     {/* Type Selector */}
-
                     <View style={styles.typeContainer}>
                         <TouchableOpacity
                             style={[styles.typeButton, formData.type === 'mid' && styles.typeActive]}
@@ -309,6 +309,10 @@ export default function ExamModal({ visible, onClose, onSuccess, selectedExam, a
                             <Text style={[styles.typeText, formData.type === 'final' && styles.typeTextActive]}>ไฟนอล</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* room */}
+                    <Text style={styles.sectionLabel}>ห้องสอบ</Text>
+                    <TextInput style={[styles.input , styles.timeValue]} placeholder="ระบุห้องสอบ" value={formData.room} onChangeText={t=>handleChange('room' , t)} />
 
                     <Text style={styles.sectionLabel}>วันที่และเวลาสอบ</Text>
                     {/* Date Button */}

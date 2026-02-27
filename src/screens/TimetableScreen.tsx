@@ -28,6 +28,7 @@ export type ExamType = {
     end: number;
     type: 'mid' | 'final'
     userId: string;
+    room : string ,
 };
 
 const DAYS_OF_WEEK = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
@@ -68,7 +69,17 @@ export default function TimetableScreen() {
             id: doc.id,
             ...doc.data()
         } as ExamType));
-        setExam(examData);
+        const ex = examData.sort((a,b)=>{
+            const [aDay , aMonth ,aYear] = a.date.split('/')
+            const aMill = new Date(Number(aYear) , Number(aMonth)-1 , Number(aDay)).setHours(0,0,0,0)
+
+            const [bDay , bMonth ,bYear] = b.date.split('/')
+            const bMill = new Date(Number(bYear) , Number(bMonth)-1 , Number(bDay)).setHours(0,0,0,0)
+        
+            return aMill - bMill;
+
+        }) 
+        setExam(ex);
     };
 
     const fetchData = async () => {
@@ -140,13 +151,12 @@ export default function TimetableScreen() {
     );
 
     const renderExam = () => {
-        const sortedExams = [...exam].sort((a, b) => a.date.localeCompare(b.date));
         return (
             <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-                {sortedExams.length === 0 ? (
+                {exam.length === 0 ? (
                     <Text style={styles.emptyText}>ไม่มีตารางสอบ</Text>
                 ) : (
-                    sortedExams.map((ex, index) => {
+                    exam.map((ex, index) => {
                         const relatedClass = study.find(s => s.id === ex.class_id);
                         const isMidterm = ex.type.toLowerCase() === 'mid';
 
@@ -168,7 +178,7 @@ export default function TimetableScreen() {
 
                                 <View style={styles.timelineDivider}>
                                     <View style={[styles.timelineDot, isMidterm ? styles.midDot : styles.finalDot]} />
-                                    {index !== sortedExams.length - 1 && <View style={styles.timelineLine} />}
+                                    {index !== exam.length - 1 && <View style={styles.timelineLine} />}
                                 </View>
 
                                 <View style={[styles.contentCol, isMidterm ? styles.midContent : styles.finalContent]}>
@@ -181,6 +191,7 @@ export default function TimetableScreen() {
                                         </View>
                                     </View>
                                     <Text style={styles.subjectName}>{relatedClass?.class_name || 'ไม่ระบุชื่อวิชา'}</Text>
+                                    <Text style={styles.subjectName}>ห้องสอบ : {ex?.room || 'ไม่ระบุห้องสอบ'}</Text>
                                 </View>
                             </Pressable>
                         )
