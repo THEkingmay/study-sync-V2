@@ -5,6 +5,10 @@ import { TouchableOpacity, View, Text, Alert, ActivityIndicator, FlatList, Style
 import THEME from "../../theme"
 import StudyPlanModal from "../components/planner/StudyPlanModal"
 import EventModal from "../components/planner/EvantModal"
+import { collection, getDocs ,doc , setDoc, deleteDoc } from "firebase/firestore"
+import { auth, db } from "../../firebaseConfig"
+
+
 
 export type EvenType = {
     id: string,
@@ -13,7 +17,7 @@ export type EvenType = {
     start: number,
     end: number,
     description: string,
-    status: 'not_done' | 'done' ,
+    status: 'not_done' | 'done',
     userId: string
 }
 
@@ -34,60 +38,47 @@ export default function PlannerScreen() {
     const [openModal, setOpenModal] = useState(false)
 
     const [event, setEvent] = useState<EvenType[]>([])
-    const [selectedEvent , setSelectedEvent] = useState<EvenType | null>(null)
+    const [selectedEvent, setSelectedEvent] = useState<EvenType | null>(null)
 
     const [studyPlan, setStudyPlan] = useState<StudyPlanType[]>([])
 
     const fetchEvent = async () => {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        setEvent([
-            {
-                id: '1',
-                title: 'กิจกรรม 1',
-                date: '01/06/2024',
-                start: 9,
-                end: 11,
-                description: 'รายละเอียดกิจกรรม 1',
-                status: 'not_done',
-                userId: 'user1'
-            },
-            {
-                id: '2',
-                title: 'กิจกรรม 2',
-                date: '02/06/2024',
-                start: 13,
-                end: 15,
-                description: 'รายละเอียดกิจกรรม 2',
-                status: 'done',
-                userId: 'user1'
-            }
-        ])
+        try {
+            const eventSnap = await getDocs(collection(db, 'users', auth.currentUser?.uid as string, 'events'))
+            const eventList = eventSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as EvenType))
+
+            const sortedEvents = eventList.sort((a, b) => {
+                const [dayA, monthA, yearA] = a.date.split('/').map(Number)
+                const [dayB, monthB, yearB] = b.date.split('/').map(Number)
+                const dateA = new Date(yearA, monthA - 1, dayA)
+                const dateB = new Date(yearB, monthB - 1, dayB)
+
+
+
+                return dateB.getTime() - dateA.getTime()
+            })
+
+            setEvent(sortedEvents)
+
+        } catch (error) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดกิจกรรมได้ กรุณาลองใหม่อีกครั้ง')
+        }
     }
 
     const fetchStudyPlan = async () => {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        setStudyPlan([
-            {
-                id: '1',
-                title: 'แผนการเรียน 1',
-                description: 'รายละเอียดแผนการเรียน 1',
-                total_hours: 10,
-                status: 'not_started',
-                created_at: '01/06/2024',
-                updated_at: '01/06/2024',
-                userId: 'user1'
-            },
-            {
-                id: '2',
-                title: 'แผนการเรียน 2',
-                description: 'รายละเอียดแผนการเรียน 2',
-                total_hours: 20,
-                status: 'in_progress',
-                created_at: '02/06/2024',
-                updated_at: '03/06/2024',
-                userId: 'user1'
-            }
-        ])
+        try {
+            const planSnap = await getDocs(collection(db, 'users', auth.currentUser?.uid as string, 'study_plans'))
+            const planList = planSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as StudyPlanType))
+            setStudyPlan(planList)
+        } catch (error) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนการเรียนได้ กรุณาลองใหม่อีกครั้ง')
+        }
     }
 
     useEffect(() => {
@@ -105,22 +96,50 @@ export default function PlannerScreen() {
     }, [])
 
     const toggleEventStatus = async (id: string) => {
+        const newStatus = event.find(e => e.id === id)?.status === 'done' ? 'not_done' : 'done'
         setEvent(prev => prev.map(e => {
             if (e.id === id) {
-                return { ...e, status: e.status === 'done' ? 'not_done' : 'done' }
+                return { ...e, status: newStatus }
             }
             return e
         }))
         try {
-            // update firebase
+            const eventRef = doc(db, 'users', auth.currentUser?.uid as string, 'events', id)
+            setDoc(eventRef, { status: newStatus }, { merge: true })
         } catch (error) {
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง')
         }
     }
+    const handleDeleteEvent = (id: string) => {
+        Alert.alert(
+            'ยืนยันการลบ',
+            'คุณแน่ใจว่าต้องการลบกิจกรรมนี้หรือไม่?',    
+            [
+                { text: 'ยกเลิก', style: 'cancel' },
+                {
+                    text: 'ลบ',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteDoc(doc(db, 'users', auth.currentUser?.uid as string, 'events', id))
+                            setEvent(prev => prev.filter(e => e.id !== id))
+                        } catch (error) {
+                            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบกิจกรรมได้ กรุณาลองใหม่อีกครั้ง')
+                        }
+                    }
+                }
+            ]
+        )
+    }
 
     const renderEventItem = (item: EvenType) => {
         const isDone = item.status === 'done'
-
+        const formattimeString = (time: number) => {
+            const [hour, minute] = String(time).split('.')
+            const hours = parseInt(hour)
+            const minutes = parseInt(minute || '0')
+            return `${hours}:${minutes < 10 ? '0' + minutes : minutes}`;
+        }
         return (
             <View style={styles.eventRow}>
                 <TouchableOpacity
@@ -137,9 +156,12 @@ export default function PlannerScreen() {
                     <Text style={[styles.eventTitle, isDone && styles.textMuted]}>
                         {item.title}
                     </Text>
+                    {item.description && <Text style={[styles.descriptionText, isDone && styles.textMuted]}>
+                        {item.description}
+                    </Text>}
                     <Text style={[styles.eventTime, isDone && styles.textMuted]}>
-                        {item.date} • {item.start}:00 - {item.end}:00 น.
-                    </Text>
+                            {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                        </Text>
                 </View>
 
                 <View style={styles.eventActions}>
@@ -149,7 +171,9 @@ export default function PlannerScreen() {
                     }}>
                         <Text style={styles.actionTextEdit}>แก้ไข</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionBtn}>
+                    <TouchableOpacity 
+                    onPress={()=>handleDeleteEvent(item.id)}
+                    style={styles.actionBtn}>
                         <Text style={styles.actionTextDelete}>ลบ</Text>
                     </TouchableOpacity>
                 </View>
@@ -228,21 +252,25 @@ export default function PlannerScreen() {
                             ? renderStudyPlanItem(item as StudyPlanType)
                             : renderEventItem(item as EvenType)
                     }
+                    ListEmptyComponent={<Text style={styles.emptyText}>ไม่มีข้อมูล</Text>}
                 />
             )}
 
             <EventModal
                 visible={openModal && selectMode === 'event'}
-                onClose={() => {setOpenModal(false); setSelectedEvent(null)}}
-                selectedEvent={selectedEvent} 
+                onClose={() => { setOpenModal(false); setSelectedEvent(null) }}
+                selectedEvent={selectedEvent}
                 onSuccess={() => {
                     fetchEvent()
                     setSelectedEvent(null)
                 }}
+                allEvents={event}
             />
             <StudyPlanModal
                 visible={openModal && selectMode === 'study_plan'}
-                onClose={() => setOpenModal(false)} />
+                onClose={() => setOpenModal(false)}
+
+            />
         </SafeAreaView>
     )
 }
@@ -420,7 +448,6 @@ const styles = StyleSheet.create({
         fontFamily: 'REGULAR',
         fontSize: 13,
         color: THEME.TEXT_SUB,
-        marginTop: 4,
     },
     statusBadge: {
         paddingHorizontal: 10,
@@ -430,5 +457,12 @@ const styles = StyleSheet.create({
     statusText: {
         fontFamily: 'BOLD',
         fontSize: 12,
-    }
+    },
+    emptyText: {
+        fontFamily: 'REGULAR',
+        fontSize: 16,
+        color: THEME.TEXT_SUB,
+        textAlign: 'center',
+        marginTop: 40,
+    },
 })
