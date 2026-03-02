@@ -134,9 +134,10 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
 
     const formattimeString = (time: number) => {
         const [hour, minute] = String(time).split('.')
-        const hours = parseInt(hour)
-        const minutes = parseInt(minute || '0')
-        return `${hours}:${minutes < 10 ? '0' + minutes : minutes}`;
+        const hourStirng = hour.padStart(2, '0')
+        const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
+        return `${hourStirng}:${minuteString}`
+        
     }
 
     return (

@@ -5,10 +5,8 @@ import { TouchableOpacity, View, Text, Alert, ActivityIndicator, FlatList, Style
 import THEME from "../../theme"
 import StudyPlanModal from "../components/planner/StudyPlanModal"
 import EventModal from "../components/planner/EvantModal"
-import { collection, getDocs ,doc , setDoc, deleteDoc } from "firebase/firestore"
+import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore"
 import { auth, db } from "../../firebaseConfig"
-
-
 
 export type EvenType = {
     id: string,
@@ -25,10 +23,10 @@ export type StudyPlanType = {
     id: string,
     title: string,
     description: string,
-    total_hours: number,
-    status: 'not_started' | 'in_progress' | 'completed',
-    created_at: string,
-    updated_at: string,
+    date: string,
+    start: number,
+    end: number,
+    status: 'not_started' | "done"
     userId: string
 }
 
@@ -41,6 +39,7 @@ export default function PlannerScreen() {
     const [selectedEvent, setSelectedEvent] = useState<EvenType | null>(null)
 
     const [studyPlan, setStudyPlan] = useState<StudyPlanType[]>([])
+    const [selectedStudyPlan, setSelectedStudyPlan] = useState<StudyPlanType | null>(null)
 
     const fetchEvent = async () => {
         try {
@@ -55,10 +54,11 @@ export default function PlannerScreen() {
                 const [dayB, monthB, yearB] = b.date.split('/').map(Number)
                 const dateA = new Date(yearA, monthA - 1, dayA)
                 const dateB = new Date(yearB, monthB - 1, dayB)
-
-
-
-                return dateB.getTime() - dateA.getTime()
+                // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
+                if (dateA.getTime() === dateB.getTime()) {
+                    return a.start - b.start
+                }
+                return dateA.getTime() - dateB.getTime()
             })
 
             setEvent(sortedEvents)
@@ -75,7 +75,20 @@ export default function PlannerScreen() {
                 id: doc.id,
                 ...doc.data()
             } as StudyPlanType))
-            setStudyPlan(planList)
+
+            const sortedPlans = planList.sort((a, b) => {
+                const [dayA, monthA, yearA] = a.date.split('/').map(Number)
+                const [dayB, monthB, yearB] = b.date.split('/').map(Number)
+                const dateA = new Date(yearA, monthA - 1, dayA)
+                const dateB = new Date(yearB, monthB - 1, dayB)
+                  // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
+                if (dateA.getTime() === dateB.getTime()) {
+                    return a.start - b.start
+                }
+                return dateA.getTime() - dateB.getTime()
+            })
+
+            setStudyPlan(sortedPlans)
         } catch (error) {
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดแผนการเรียนได้ กรุณาลองใหม่อีกครั้ง')
         }
@@ -110,10 +123,11 @@ export default function PlannerScreen() {
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง')
         }
     }
+
     const handleDeleteEvent = (id: string) => {
         Alert.alert(
             'ยืนยันการลบ',
-            'คุณแน่ใจว่าต้องการลบกิจกรรมนี้หรือไม่?',    
+            'คุณแน่ใจว่าต้องการลบกิจกรรมนี้หรือไม่?',
             [
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
@@ -132,14 +146,53 @@ export default function PlannerScreen() {
         )
     }
 
+    const toggleStudyPlanStatus = async (id: string) => {
+        const newStatus = studyPlan.find(p => p.id === id)?.status === 'done' ? 'not_started' : 'done'
+        setStudyPlan(prev => prev.map(p => {
+            if (p.id === id) {
+                return { ...p, status: newStatus }
+            }
+            return p
+        }))
+        try {
+            const planRef = doc(db, 'users', auth.currentUser?.uid as string, 'study_plans', id)
+            await setDoc(planRef, { status: newStatus }, { merge: true })
+        } catch (error) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถอัปเดตสถานะแผนการเรียนได้ กรุณาลองใหม่อีกครั้ง')
+        }
+    }
+
+    const handleDeleteStudyPlan = (id: string) => {
+        Alert.alert(
+            'ยืนยันการลบ',
+            'คุณแน่ใจว่าต้องการลบแผนการเรียนนี้หรือไม่?',
+            [
+                { text: 'ยกเลิก', style: 'cancel' },
+                {
+                    text: 'ลบ',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteDoc(doc(db, 'users', auth.currentUser?.uid as string, 'study_plans', id))
+                            setStudyPlan(prev => prev.filter(p => p.id !== id))
+                        } catch (error) {
+                            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบแผนการเรียนได้ กรุณาลองใหม่อีกครั้ง')
+                        }
+                    }
+                }
+            ]
+        )
+    }
+
+    const formattimeString = (time: number) => {
+        const [hour, minute] = String(time).split('.')
+        const hourString = hour.padStart(2, '0')
+        const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
+        return `${hourString}:${minuteString}`
+    }
+
     const renderEventItem = (item: EvenType) => {
         const isDone = item.status === 'done'
-        const formattimeString = (time: number) => {
-            const [hour, minute] = String(time).split('.')
-            const hours = parseInt(hour)
-            const minutes = parseInt(minute || '0')
-            return `${hours}:${minutes < 10 ? '0' + minutes : minutes}`;
-        }
         return (
             <View style={styles.eventRow}>
                 <TouchableOpacity
@@ -156,12 +209,14 @@ export default function PlannerScreen() {
                     <Text style={[styles.eventTitle, isDone && styles.textMuted]}>
                         {item.title}
                     </Text>
-                    {item.description && <Text style={[styles.descriptionText, isDone && styles.textMuted]}>
-                        {item.description}
-                    </Text>}
-                    <Text style={[styles.eventTime, isDone && styles.textMuted]}>
-                            {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                    {item.description ? (
+                        <Text style={[styles.descriptionText, isDone && styles.textMuted]}>
+                            {item.description}
                         </Text>
+                    ) : null}
+                    <Text style={[styles.eventTime, isDone && styles.textMuted]}>
+                        {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                    </Text>
                 </View>
 
                 <View style={styles.eventActions}>
@@ -171,9 +226,9 @@ export default function PlannerScreen() {
                     }}>
                         <Text style={styles.actionTextEdit}>แก้ไข</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                    onPress={()=>handleDeleteEvent(item.id)}
-                    style={styles.actionBtn}>
+                    <TouchableOpacity
+                        onPress={() => handleDeleteEvent(item.id)}
+                        style={styles.actionBtn}>
                         <Text style={styles.actionTextDelete}>ลบ</Text>
                     </TouchableOpacity>
                 </View>
@@ -181,26 +236,47 @@ export default function PlannerScreen() {
         )
     }
 
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'completed': return { bg: '#E8F5E9', text: THEME.SUCCESS, label: 'เสร็จสิ้น' }
-            case 'in_progress': return { bg: '#FFF3E0', text: '#F57C00', label: 'กำลังดำเนินการ' }
-            default: return { bg: '#ECEFF1', text: THEME.TEXT_SUB, label: 'ยังไม่เริ่ม' }
-        }
-    }
-
     const renderStudyPlanItem = (item: StudyPlanType) => {
-        const statusConfig = getStatusStyle(item.status)
+        const isDone = item.status === 'done'
         return (
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-                        <Text style={[styles.statusText, { color: statusConfig.text }]}>{statusConfig.label}</Text>
+            <View style={styles.eventRow}>
+                <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => toggleStudyPlanStatus(item.id)}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.checkbox, isDone && styles.checkboxActive]}>
+                        {isDone && <View style={styles.checkboxInner} />}
                     </View>
+                </TouchableOpacity>
+
+                <View style={styles.eventContent}>
+                    <Text style={[styles.eventTitle, isDone && styles.textMuted]}>
+                        {item.title}
+                    </Text>
+                    {item.description ? (
+                        <Text style={[styles.descriptionText, isDone && styles.textMuted]}>
+                            {item.description}
+                        </Text>
+                    ) : null}
+                    <Text style={[styles.eventTime, isDone && styles.textMuted]}>
+                        {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                    </Text>
                 </View>
-                <Text style={styles.subText}>เวลาทั้งหมด: {item.total_hours} ชั่วโมง</Text>
-                <Text style={styles.descriptionText}>{item.description}</Text>
+
+                <View style={styles.eventActions}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => {
+                        setSelectedStudyPlan(item)
+                        setOpenModal(true)
+                    }}>
+                        <Text style={styles.actionTextEdit}>แก้ไข</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => handleDeleteStudyPlan(item.id)}
+                        style={styles.actionBtn}>
+                        <Text style={styles.actionTextDelete}>ลบ</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         )
     }
@@ -268,8 +344,13 @@ export default function PlannerScreen() {
             />
             <StudyPlanModal
                 visible={openModal && selectMode === 'study_plan'}
-                onClose={() => setOpenModal(false)}
-
+                onClose={() => { setOpenModal(false); setSelectedStudyPlan(null) }}
+                selectStudyPlan={selectedStudyPlan}
+                allPlan={studyPlan}
+                onSuccess={() => {
+                    fetchStudyPlan()
+                    setSelectedStudyPlan(null)
+                }}
             />
         </SafeAreaView>
     )
@@ -390,6 +471,12 @@ const styles = StyleSheet.create({
         color: THEME.TEXT_MAIN,
         marginBottom: 4,
     },
+    descriptionText: {
+        fontFamily: 'REGULAR',
+        fontSize: 14,
+        color: THEME.TEXT_SUB,
+        marginBottom: 4,
+    },
     eventTime: {
         fontFamily: 'REGULAR',
         fontSize: 13,
@@ -417,46 +504,6 @@ const styles = StyleSheet.create({
         fontFamily: 'BOLD',
         fontSize: 13,
         color: THEME.ERROR,
-    },
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F0F0F0',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    cardTitle: {
-        fontFamily: 'BOLD',
-        fontSize: 18,
-        color: THEME.TEXT_MAIN,
-        flex: 1,
-    },
-    subText: {
-        fontFamily: 'REGULAR',
-        fontSize: 14,
-        color: THEME.TEXT_MAIN,
-        marginBottom: 4,
-    },
-    descriptionText: {
-        fontFamily: 'REGULAR',
-        fontSize: 13,
-        color: THEME.TEXT_SUB,
-    },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    statusText: {
-        fontFamily: 'BOLD',
-        fontSize: 12,
     },
     emptyText: {
         fontFamily: 'REGULAR',
