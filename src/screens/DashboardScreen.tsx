@@ -1,14 +1,15 @@
 import React, { useCallback, useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import THEME from "../../theme";
 import { auth, db } from "../../firebaseConfig";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, sum } from "firebase/firestore";
 import { NativeBottomTabScreenProps } from "@react-navigation/bottom-tabs/unstable";
 import { RootTabsParamsLists } from "../../App";
 import DAYS_OF_WEEK from "../constants/day";
 import { ExamType, StudyType } from "./TimetableScreen";
+import type { EvenType, StudyPlanType } from "./PlannerScreen";
 
 const SkeletonItem = ({ width, height, borderRadius = 8, style }: any) => {
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -50,11 +51,17 @@ export default function DashboardScreen({ navigation }: Props) {
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
   const [loadingClass, setLoadingClass] = useState<boolean>(true);
   const [loadingExams, setLoadingExams] = useState<boolean>(true);
+  const [loadingEventSummary, setLoadingEventSummary] = useState<boolean>(true);
 
   const [userName, setUserName] = useState<string>('');
   const [nextClass, setNextClass] = useState<Partial<StudyType> | null>(null)
 
+  const [allExams, setAllExams] = useState<ExamTypeDashboard[]>([])
   const [sevenDaysExams, setSevenDaysExam] = useState<Partial<ExamTypeDashboard>[]>([])
+  const [selectedFilter, setSelectedFilter] = useState<'week' | 'month'>('week')
+
+  const [allEvent, setAllEvent] = useState<EvenType[]>([])
+  const [allStudyPlan, setAllStudyPlan] = useState<StudyPlanType[]>([])
 
   const fetchNUserName = async (isActive: boolean) => {
     setLoadingUser(true);
@@ -141,7 +148,7 @@ export default function DashboardScreen({ navigation }: Props) {
         date: ex.date,
         dayleft: 0
       }))
-
+      setAllExams(tmp)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
@@ -159,6 +166,37 @@ export default function DashboardScreen({ navigation }: Props) {
 
     } finally {
       if (isActive) setLoadingExams(false);
+    }
+  };
+
+  const fetchEventSummary = async (isActive: boolean) => {
+    try {
+      setLoadingEventSummary(true);
+      const uid = auth.currentUser?.uid
+      if (!uid) return null
+
+      const fetchEvent = getDocs(collection(db, 'users', uid, 'events'));
+      const fetchStudyPlan = getDocs(collection(db, 'users', uid, 'study_plans'));
+
+      const [eventSnap, studyPlanSnap] = await Promise.all([fetchEvent, fetchStudyPlan]);
+
+      const allEvents: EvenType[] = eventSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as EvenType));
+
+      const allStudyPlans: StudyPlanType[] = studyPlanSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as StudyPlanType));
+
+      setAllEvent(allEvents);
+      setAllStudyPlan(allStudyPlans);
+
+    } catch (error) {
+      console.error("Error fetching event summary:", error);
+    } finally {
+      if (isActive) setLoadingEventSummary(false);
     }
   };
 
@@ -189,6 +227,7 @@ export default function DashboardScreen({ navigation }: Props) {
       fetchNUserName(isActive);
       fetchNextClass(isActive);
       fetchExamIn7days(isActive);
+      fetchEventSummary(isActive);
       getTimeNow()
 
       return () => {
@@ -197,122 +236,309 @@ export default function DashboardScreen({ navigation }: Props) {
     }, [])
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+  const renderEventSummary = async (filter: 'week' | 'month') => {
+    const filteredEvents = allEvent.filter(event => {
+      const [day, month, year] = event.date.split('/')
+      const eventDate = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const ONE_DAY_MILLI = 24 * 60 * 60 * 1000
+      const dayleft = (eventDate - today.getTime()) / ONE_DAY_MILLI
+      return dayleft >= 0 && ((filter === 'week' && dayleft <= 7) || (filter === 'month' && dayleft <= 30))
+    })
 
-        <View style={styles.header}>
-          {loadingUser ? (
-            <>
-              <SkeletonItem width={180} height={32} style={{ marginBottom: 8 }} />
-              <SkeletonItem width={220} height={20} />
-            </>
-          ) : (
-            <View>
-              <Text style={styles.greeting}>สวัสดี, {userName || "ผู้ใช้งาน"}</Text>
-              <Text style={styles.subtitle}>{lastTimeCheck}</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => navigation.navigate('planner')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.fabIcon}>+</Text>
-          </TouchableOpacity>
+    const filteredStudyPlans = allStudyPlan.filter(plan => {
+      const [day, month, year] = plan.date.split('/')
+      const planDate = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const ONE_DAY_MILLI = 24 * 60 * 60 * 1000
+      const dayleft = (planDate - today.getTime()) / ONE_DAY_MILLI
+      return dayleft >= 0 && ((filter === 'week' && dayleft <= 7) || (filter === 'month' && dayleft <= 30))
+    })
+
+    const filteredExam = allExams.filter(exam => {
+      const [day, month, year] = exam.date.split('/')
+      const examDate = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const ONE_DAY_MILLI = 24 * 60 * 60 * 1000
+      const dayleft = (examDate - today.getTime()) / ONE_DAY_MILLI
+      return dayleft >= 0 && ((filter === 'week' && dayleft <= 7) || (filter === 'month' && dayleft <= 30))
+    }
+    )
+
+    const renderDateRange = () => {
+      const today = new Date();
+      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+      const startDate = today.toLocaleDateString('th-TH', options);
+
+      let endDate: string;
+      if (filter === 'week') {
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        endDate = nextWeek.toLocaleDateString('th-TH', options);
+        return `กิจกรรมระหว่าง ${startDate} - ${endDate}`;
+      }
+      if (filter === 'month') {
+        const nextMonth = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+        endDate = nextMonth.toLocaleDateString('th-TH', options);
+        return `กิจกรรมระหว่าง ${startDate} - ${endDate}`;
+      }
+      return `กิจกรรมระหว่าง ${startDate}`;
+    }
+    if (loadingEventSummary) {
+      return (
+        <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
+          <SkeletonItem width={'100%'} height={20} style={{ marginBottom: 12 }} />
+          <SkeletonItem width={'80%'} height={28} style={{ marginBottom: 8 }} />
+          <SkeletonItem width={'60%'} height={20} />
         </View>
+      );
+    }
+    if (filteredEvents.length === 0 && filteredStudyPlans.length === 0) {
+      return (
+        <View style={[styles.card, styles.emptyCard]}>
+          <Text style={styles.emptyStateText}>ไม่พบกิจกรรมสำหรับ {filter === 'week' ? '1 สัปดาห์หน้า' : '1 เดือนหน้า'}</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.card}>
+        {/* Date Range */}
+        <Text style={styles.dateRangeText}>{renderDateRange()}</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>วิชาถัดไป</Text>
-          {loadingClass ? (
-            <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
-              <View style={styles.cardHeader}>
-                <SkeletonItem width={90} height={20} />
+        {/* Events Section */}
+        {filteredEvents && filteredEvents.length > 0 && (
+          <View style={[styles.summarySection, { marginBottom: 5 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+            <Text style={styles.summaryHeader}>กิจกรรม</Text>
+            {filteredEvents.map((event, index) => (
+              <View key={event.id}>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryContent}>
+                    <Text style={styles.summaryTitle}>{event.title}</Text>
+                    <Text style={styles.summaryDate}>{event.date}</Text>
+                  </View>
+                </View>
+                {index < filteredEvents.length - 1 && <View style={styles.summaryDivider} />}
               </View>
-              <SkeletonItem width={200} height={28} style={{ marginBottom: 8 }} />
-              <SkeletonItem width={120} height={20} />
-            </View>
-          ) : nextClass ? (
-            <View style={[styles.card, styles.primaryCard]}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.timeText}>
-                  {nextClass.day} เวลา {nextClass.start} น. - {nextClass.end} น.
-                </Text>
+            ))}
+          </View>
+        )}
+
+        {/* Study Plans Section */}
+        {filteredStudyPlans && filteredStudyPlans.length > 0 && (
+          <View style={[styles.summarySection, { marginBottom: 5 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+            <Text style={styles.summaryHeader}>แผนการเรียน</Text>
+            {filteredStudyPlans.map((plan, index) => (
+              <View key={plan.id}>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryContent}>
+                    <Text style={styles.summaryTitle}>{plan.title}</Text>
+                    <Text style={styles.summaryDate}>{plan.date}</Text>
+                  </View>
+                </View>
+                {index < filteredStudyPlans.length - 1 && <View style={styles.summaryDivider} />}
               </View>
-              <Text style={styles.courseName}>{nextClass.class_name}</Text>
-              <Text style={styles.location}>ห้อง {nextClass.room}</Text>
+            ))}
+          </View>
+        )}
+
+        {/* Exams Section */}
+        {filteredExam && filteredExam.length > 0 && (
+          <View style={[styles.summarySection, { marginBottom: 0 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+            <Text style={styles.summaryHeader}>การสอบ</Text>
+            {filteredExam.map((exam, index) => (
+              <View key={exam.id}>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryContent}>
+                    <Text style={styles.summaryTitle}>{exam.class_name}</Text>
+                    <Text style={styles.summaryDate}>{exam.date} เวลา {exam.start} - {exam.end} น.</Text>
+                  </View>
+                  <View style={[styles.summaryBadge, { backgroundColor: THEME.ERROR + '20' }]}>
+                    <Text style={[styles.summaryBadgeText, { color: THEME.ERROR }]}>{exam.type}</Text>
+                  </View>
+                </View>
+                {index < filteredExam.length - 1 && <View style={styles.summaryDivider} />}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+return (
+  <SafeAreaView style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+
+      <View style={styles.header}>
+        {loadingUser ? (
+          <>
+            <SkeletonItem width={180} height={32} style={{ marginBottom: 8 }} />
+            <SkeletonItem width={220} height={20} />
+          </>
+        ) : (
+          <View>
+            <Text style={styles.greeting}>สวัสดี, {userName || "ผู้ใช้งาน"}</Text>
+            <Text style={styles.subtitle}>{lastTimeCheck}</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('planner')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>วิชาถัดไป</Text>
+        {loadingClass ? (
+          <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
+            <View style={styles.cardHeader}>
+              <SkeletonItem width={90} height={20} />
             </View>
-          ) : (
-            <View style={[styles.card, styles.emptyCard]}>
-              <Text style={styles.emptyStateText}>
-                ไม่พบวิชาเรียน
+            <SkeletonItem width={200} height={28} style={{ marginBottom: 8 }} />
+            <SkeletonItem width={120} height={20} />
+          </View>
+        ) : nextClass ? (
+          <View style={[styles.card, styles.primaryCard]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.timeText}>
+                {nextClass.day} เวลา {nextClass.start} น. - {nextClass.end} น.
               </Text>
             </View>
-          )}
-        </View>
+            <Text style={styles.courseName}>{nextClass.class_name}</Text>
+            <Text style={styles.location}>ห้อง {nextClass.room}</Text>
+          </View>
+        ) : (
+          <View style={[styles.card, styles.emptyCard]}>
+            <Text style={styles.emptyStateText}>
+              ไม่พบวิชาเรียน
+            </Text>
+          </View>
+        )}
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>สอบใน 7 วันนี้</Text>
-          {loadingExams ? (
-            <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
-              <View style={styles.examRow}>
-                <View style={styles.examInfo}>
-                  <SkeletonItem width={150} height={20} style={{ marginBottom: 6 }} />
-                  <SkeletonItem width={100} height={16} />
-                </View>
-                <SkeletonItem width={40} height={20} />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>สอบใน 7 วันนี้</Text>
+        {loadingExams ? (
+          <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
+            <View style={styles.examRow}>
+              <View style={styles.examInfo}>
+                <SkeletonItem width={150} height={20} style={{ marginBottom: 6 }} />
+                <SkeletonItem width={100} height={16} />
               </View>
-              <View style={styles.divider} />
-              <View style={styles.examRow}>
-                <View style={styles.examInfo}>
-                  <SkeletonItem width={170} height={20} style={{ marginBottom: 6 }} />
-                  <SkeletonItem width={120} height={16} />
-                </View>
-                <SkeletonItem width={40} height={20} />
-              </View>
+              <SkeletonItem width={40} height={20} />
             </View>
-          ) : sevenDaysExams.length > 0 ? (
-            <View style={styles.card}>
-              {sevenDaysExams.map((ex, index) => (
-                <View key={ex.id}>
-                  <View style={styles.examRow}>
-                    <View style={styles.examInfo}>
-                      <View style={styles.examHeaderGroup}>
-                        <View style={styles.examTypeBadge}>
-                          <Text style={styles.examTypeBadgeText}>{ex.type}</Text>
-                        </View>
-                        <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
+            <View style={styles.divider} />
+            <View style={styles.examRow}>
+              <View style={styles.examInfo}>
+                <SkeletonItem width={170} height={20} style={{ marginBottom: 6 }} />
+                <SkeletonItem width={120} height={16} />
+              </View>
+              <SkeletonItem width={40} height={20} />
+            </View>
+          </View>
+        ) : sevenDaysExams.length > 0 ? (
+          <View style={styles.card}>
+            {sevenDaysExams.map((ex, index) => (
+              <View key={ex.id}>
+                <View style={styles.examRow}>
+                  <View style={styles.examInfo}>
+                    <View style={styles.examHeaderGroup}>
+                      <View style={styles.examTypeBadge}>
+                        <Text style={styles.examTypeBadgeText}>{ex.type}</Text>
                       </View>
-                      <Text style={styles.examDetailText}>วันที่ {ex.date} | เวลา {ex.start} - {ex.end} น.</Text>
-                      <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
+                      <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
                     </View>
-
-                    <View style={styles.countdownContainer}>
-                      <Text style={[
-                        styles.countdownNumber,
-                        { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY }
-                      ]}>
-                        {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
-                      </Text>
-                      {ex.dayleft !== 0 && <Text style={styles.countdownLabel}>วัน</Text>}
-                    </View>
+                    <Text style={styles.examDetailText}>วันที่ {ex.date} | เวลา {ex.start} - {ex.end} น.</Text>
+                    <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
                   </View>
 
-                  {index < sevenDaysExams.length - 1 && <View style={styles.divider} />}
+                  <View style={styles.countdownContainer}>
+                    <Text style={[
+                      styles.countdownNumber,
+                      { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY }
+                    ]}>
+                      {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
+                    </Text>
+                    {ex.dayleft !== 0 && <Text style={styles.countdownLabel}>วัน</Text>}
+                  </View>
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={[styles.card, styles.emptyCard]}>
-              <Text style={styles.emptyStateText}>ไม่พบวิชาสอบในช่วง 7 วันข้างหน้า</Text>
-            </View>
-          )}
+
+                {index < sevenDaysExams.length - 1 && <View style={styles.divider} />}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.card, styles.emptyCard]}>
+            <Text style={styles.emptyStateText}>ไม่พบวิชาสอบในช่วง 7 วันข้างหน้า</Text>
+          </View>
+        )}
+      </View>
+
+
+      {/* filter section week , month */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>สรุปสิ่งที่ต้องทำ</Text>
+        {/* seletion 1สับปดาหน้า หรือ 1เดือนหน้า */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <Pressable
+            onPress={() => setSelectedFilter('week')}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
+              },
+              {
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 12,
+                alignSelf: 'flex-start',
+                marginBottom: 16,
+                backgroundColor: selectedFilter === 'week' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
+                borderWidth: selectedFilter === 'week' ? 1 : 0,
+                borderColor: selectedFilter === 'week' ? THEME.PRIMARY : 'transparent',
+              }
+            ]}>
+            <Text style={{
+              fontFamily: "BOLD",
+              fontSize: 14,
+              color: THEME.PRIMARY,
+            }}>1 สัปดาห์หน้า</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setSelectedFilter('month')}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
+              },
+              {
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 12, alignSelf: 'flex-start',
+                marginBottom: 16,
+                backgroundColor: selectedFilter === 'month' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
+                borderWidth: selectedFilter === 'month' ? 1 : 0,
+                borderColor: selectedFilter === 'month' ? THEME.PRIMARY : 'transparent',
+              }
+            ]}>
+            <Text style={{
+              fontFamily: "BOLD",
+              fontSize: 14,
+              color: THEME.PRIMARY,
+            }}>1 เดือนหน้า</Text>
+
+          </Pressable>
         </View>
+        {renderEventSummary(selectedFilter)}
+      </View>
 
-      </ScrollView>
+    </ScrollView>
 
-    </SafeAreaView>
-  );
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -351,6 +577,58 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: THEME.TEXT_MAIN,
     marginBottom: 16,
+  },
+  summarySection: {
+    marginBottom: 16,
+  },
+  summaryHeader: {  
+    fontFamily: "BOLD",
+    fontSize: 16,
+    color: THEME.TEXT_MAIN,
+    marginBottom: 12,
+  },
+  dateRangeText: {
+    fontFamily: "BOLD",
+    fontSize: 14, 
+    color: THEME.TEXT_SUB,
+    marginBottom: 12,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    marginVertical: 8,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  summaryContent: {
+    flex: 1,
+  },
+  summaryTitle: {
+    fontFamily: "BOLD",
+    fontSize: 14,
+    color: THEME.TEXT_MAIN,
+    marginBottom: 2,
+  },
+  summaryDate: {
+    fontFamily: "REGULAR",
+    fontSize: 12,
+    color: THEME.TEXT_SUB,
+  },
+  summaryBadge: {
+    backgroundColor: THEME.PRIMARY + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 12, 
+  },
+  summaryBadgeText: {
+    fontFamily: "BOLD", 
+    fontSize: 10,
+    color: THEME.PRIMARY,
   },
   card: {
     backgroundColor: THEME.CARD_BG,
