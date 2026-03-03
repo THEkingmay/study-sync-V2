@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { TouchableOpacity, View, Text, Alert, ActivityIndicator, FlatList, StyleSheet } from "react-native"
 
@@ -7,6 +7,7 @@ import StudyPlanModal from "../components/planner/StudyPlanModal"
 import EventModal from "../components/planner/EvantModal"
 import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore"
 import { auth, db } from "../../firebaseConfig"
+import { useFocusEffect } from "@react-navigation/native"
 
 export type EvenType = {
     id: string,
@@ -81,7 +82,7 @@ export default function PlannerScreen() {
                 const [dayB, monthB, yearB] = b.date.split('/').map(Number)
                 const dateA = new Date(yearA, monthA - 1, dayA)
                 const dateB = new Date(yearB, monthB - 1, dayB)
-                  // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
+                // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
                 if (dateA.getTime() === dateB.getTime()) {
                     return a.start - b.start
                 }
@@ -94,19 +95,21 @@ export default function PlannerScreen() {
         }
     }
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true)
-                await Promise.all([fetchEvent(), fetchStudyPlan()])
-            } catch (error) {
-                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง')
-            } finally {
-                setLoading(false)
+    useFocusEffect(
+        useCallback(() => {
+            const loadData = async () => {
+                try {
+                    setLoading(true)
+                    await Promise.all([fetchEvent(), fetchStudyPlan()])
+                } catch (error) {
+                    Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง')
+                } finally {
+                    setLoading(false)
+                }
             }
-        }
-        loadData()
-    }, [])
+            loadData()
+        }, [])
+    )
 
     const toggleEventStatus = async (id: string) => {
         const newStatus = event.find(e => e.id === id)?.status === 'done' ? 'not_done' : 'done'

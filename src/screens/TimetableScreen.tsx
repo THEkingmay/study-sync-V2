@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, Pressable } from "react-native";
 import THEME from "../../theme";
 import { db, auth } from "../../firebaseConfig";
@@ -6,6 +6,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StudyClassModal from "../components/timetable/StudyClassModal";
 import ExamModal from "../components/timetable/ExamModal";
+import { useFocusEffect } from "@react-navigation/native";
 
 export type StudyType = {
     id: string;
@@ -93,9 +94,11 @@ export default function TimetableScreen() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
 
     const formatTimeDisplay = (numTime: number) => {
         const timeStr = numTime.toFixed(2);
