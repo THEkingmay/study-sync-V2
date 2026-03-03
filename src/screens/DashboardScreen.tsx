@@ -295,7 +295,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       );
     }
-    if (filteredEvents.length === 0 && filteredStudyPlans.length === 0) {
+    if (filteredEvents.length === 0 && filteredStudyPlans.length === 0 && filteredExam.length === 0 && !loadingEventSummary) {
       return (
         <View style={[styles.card, styles.emptyCard]}>
           <Text style={styles.emptyStateText}>ไม่พบกิจกรรมสำหรับ {filter === 'week' ? '1 สัปดาห์หน้า' : '1 เดือนหน้า'}</Text>
