@@ -12,7 +12,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 
 import { auth, db } from '../../firebaseConfig';
@@ -84,8 +84,24 @@ export default function ProfileScreen() {
           onPress: async () => {
             setIsLoading(true);
             try {
-              const docRef = doc(db, 'users', user.uid);
-              await deleteDoc(docRef);
+              const userRef = doc(db, 'users', user.uid);
+              const classRef = collection(db, 'users', user.uid , 'class');
+              const eventRef = collection(db, 'users', user.uid , 'events');
+              const studyPlanRef = collection(db, 'users', user.uid , 'study_plans');
+              const examRef = collection(db, 'users', user.uid , 'exam');
+
+              await deleteDoc(userRef);
+              const deleteCollection = async (colRef: any) => {
+                const snapshot = await getDocs(colRef);  
+                snapshot.forEach(async (doc: any) => {
+                  await deleteDoc(doc.ref);
+                });
+              };
+              await deleteCollection(classRef);
+              await deleteCollection(eventRef);
+              await deleteCollection(studyPlanRef);
+              await deleteCollection(examRef);
+
               setName('');
               setFaculty('');
               setYear('');
