@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, Pressable } from "react-native";
 import THEME from "../../theme";
 import { db, auth } from "../../firebaseConfig";
@@ -8,6 +8,21 @@ import StudyClassModal from "../components/timetable/StudyClassModal";
 import ExamModal from "../components/timetable/ExamModal";
 import { useFocusEffect } from "@react-navigation/native";
 
+export type StudyResponseType = {
+    id: string;
+    class_code: string;
+    class_name: string;
+    room: string;
+    professor_name: string;
+    dates : {
+        day: string;
+        start: number;
+        end: number;
+        sec: string,
+    }[],
+    userId: string;
+};
+
 export type StudyType = {
     id: string;
     class_code: string;
@@ -15,7 +30,7 @@ export type StudyType = {
     room: string;
     sec: string,
     professor_name: string;
-    day: string;
+    day: string,
     start: number;
     end: number;
     userId: string;
@@ -36,14 +51,36 @@ const DAYS_OF_WEEK = ['จันทร์', 'อังคาร', 'พุธ', '
 
 export default function TimetableScreen() {
     const [selectMode, setSelectMode] = useState<'study' | 'exam'>('study');
-    const [study, setStudy] = useState<StudyType[]>([]);
-    const [selectedClass, setSelClass] = useState<StudyType | null>(null);
+    const [study, setStudy] = useState<StudyResponseType[]>([]);
+    const [selectedClass, setSelClass] = useState<StudyResponseType | null>(null);
     const [exam, setExam] = useState<ExamType[]>([]);
     const [selectedExam, setSelExam] = useState<ExamType | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [isOpenModal, setIsOpenModal] = useState<{ study: boolean, exam: boolean }>({ study: false, exam: false });
 
+    const studylist: StudyType[] = useMemo(() => {
+        const list: StudyType[] = [];
+        study.forEach(studyItem => {
+            studyItem.dates.forEach(date => {
+                list.push({
+                    id: studyItem.id,
+                    class_code: studyItem.class_code,
+                    class_name: studyItem.class_name,
+                    room: studyItem.room,
+                    sec: date.sec,
+                    professor_name: studyItem.professor_name,
+                    day: date.day,
+                    start: date.start,
+                    end: date.end,
+                    userId: studyItem.userId
+                });
+            });
+        });
+        return list;
+    }, [study]);
+
     const fetchStudy = async () => {
+        try{
         const userId = auth.currentUser?.uid;
         if (!userId) {
             Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่");
@@ -51,14 +88,20 @@ export default function TimetableScreen() {
             return;
         }
         const studySnap = await getDocs(collection(db, 'users', userId, 'class'));
-        const studyData: StudyType[] = studySnap.docs.map(doc => ({
+        const studyData: StudyResponseType[] = studySnap.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-        } as StudyType));
+        } as StudyResponseType));
+
         setStudy(studyData);
+        } catch (error) {
+            console.error("Error fetching study data:", error);
+            Alert.alert("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลตารางเรียนได้ในขณะนี้");
+        }
     };
 
     const fetchExam = async () => {
+        try {
         const userId = auth.currentUser?.uid;
         if (!userId) {
             Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่");
@@ -81,6 +124,9 @@ export default function TimetableScreen() {
 
         })
         setExam(ex);
+        } catch (error) {
+            Alert.alert("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลตารางสอบได้ในขณะนี้");
+        }
     };
 
     const fetchData = async () => {
@@ -101,6 +147,7 @@ export default function TimetableScreen() {
     );
 
     const formatTimeDisplay = (numTime: number) => {
+        if(isNaN(numTime)) return '--:--';
         const timeStr = numTime.toFixed(2);
         const [hours, minutes] = timeStr.split('.');
         return `${hours.padStart(2, '0')}:${minutes}`;
@@ -110,7 +157,7 @@ export default function TimetableScreen() {
         <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {study.length === 0 && <Text style={styles.emptyText}>ไม่มีตารางเรียน</Text>}
             {DAYS_OF_WEEK.map(day => {
-                const classesForDay = study.filter(item => item.day === day).sort((a, b) => a.start - b.start);
+                const classesForDay = studylist.filter(item => item.day === day).sort((a, b) => a.start - b.start);
                 if (classesForDay.length === 0) return null;
 
                 return (
@@ -118,8 +165,8 @@ export default function TimetableScreen() {
                         <Text style={styles.dayHeading}>{day}</Text>
                         {classesForDay.map((cls, index) => (
                             <Pressable
-                                key={cls.id}
-                                onPress={() => { setIsOpenModal({ ...isOpenModal, study: true }); setSelClass(cls); }}
+                                key={cls.id+day+index}
+                                onPress={() => { setIsOpenModal({ ...isOpenModal, study: true }); setSelClass(study.find(s => s.id === cls.id) || null);}} 
                                 style={({ pressed }) => [styles.timelineRow, pressed && styles.pressedState]}
                             >
                                 <View style={styles.timeCol}>

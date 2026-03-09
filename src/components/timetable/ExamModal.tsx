@@ -6,7 +6,7 @@ import {
     Pressable
 } from "react-native";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ExamType, StudyType } from "../../screens/TimetableScreen";
+import { ExamType, StudyResponseType } from "../../screens/TimetableScreen";
 import THEME from "../../../theme";
 import { Picker } from "@react-native-picker/picker";
 import { addDoc, collection, deleteDoc, doc, setDoc } from "firebase/firestore";
@@ -18,7 +18,7 @@ interface ModalProps {
     onClose: () => void;
     onSuccess?: () => void;
     selectedExam?: ExamType | null;
-    allClass: StudyType[];
+    allClass: StudyResponseType[];
     allExam: ExamType[]
 }
 

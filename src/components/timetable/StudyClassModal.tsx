@@ -6,36 +6,51 @@ import {
     Pressable
 } from "react-native";
 import THEME from "../../../theme";
-import type { StudyType } from "../../screens/TimetableScreen";
+import type { StudyResponseType } from "../../screens/TimetableScreen";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { db, auth } from "../../../firebaseConfig";
 import DAYS_OF_WEEK from "../../constants/day";
 
+interface DateEntry {
+    day: string;
+    start: number;
+    end: number;
+    sec: string;
+}
+
+interface FormData {
+    class_code: string;
+    class_name: string;
+    room: string;
+    professor_name: string;
+    dates: DateEntry[];
+}
+
 interface ModalProps {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    selectedClass?: StudyType | null;
-    allClass: StudyType[]
+    selectedClass?: StudyResponseType | null;
+    allClass: StudyResponseType[]
 }
+
+const defaultFormData: FormData = {
+    class_code: '',
+    class_name: '',
+    room: '',
+    professor_name: '',
+    dates: [{ day: 'จันทร์', start: 8.0, end: 9.0, sec: '' }],
+};
 
 export default function StudyClassModal({ visible, onClose, onSuccess, selectedClass, allClass }: ModalProps) {
     const isEditing = !!selectedClass;
 
-    const [formData, setFormData] = useState({
-        class_code: '',
-        class_name: '',
-        room: '',
-        sec: '',
-        professor_name: '',
-        day: 'จันทร์',
-        start: 8.0,
-        end: 9.0
-    });
+    const [formData, setFormData] = useState<FormData>({ ...defaultFormData });
     const [isSaving, setIsSaving] = useState<boolean>(false)
     const [isDeleting, setIsDeleting] = useState<boolean>(false)
+    const [activeDateIndex, setActiveDateIndex] = useState<number>(0)
 
     // State สำหรับควบคุมการแสดงผล Time Picker
     const [showPicker, setShowPicker] = useState<'start' | 'end' | null>(null);
@@ -48,25 +63,51 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                     class_name: selectedClass.class_name,
                     room: selectedClass.room,
                     professor_name: selectedClass.professor_name,
-                    day: selectedClass.day,
-                    start: selectedClass.start,
-                    end: selectedClass.end,
-                    sec: selectedClass.sec
+                    dates: selectedClass.dates.map(d => ({
+                        ...d,
+                        sec: (d as any).sec ?? (selectedClass as any).sec ?? '',
+                    })),
                 });
             } else {
-                setFormData({
-                    class_code: '', class_name: '', room: '',
-                    professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0, sec: ''
-                });
+                setFormData({ ...defaultFormData, dates: [{ day: 'จันทร์', start: 8.0, end: 9.0, sec: '' }] });
             }
+            setActiveDateIndex(0);
         }
     }, [visible, selectedClass]);
 
-    const handleChange = (field: keyof typeof formData, value: string | number) => {
+    const handleChange = (field: keyof FormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleTimeChange = (event: any, selectedDate?: Date) => {
+    const handleDateFieldChange = (index: number, field: keyof DateEntry, value: string | number) => {
+        setFormData(prev => {
+            const newDates = [...prev.dates];
+            newDates[index] = { ...newDates[index], [field]: value };
+            return { ...prev, dates: newDates };
+        });
+    };
+
+    const addDateEntry = () => {
+        setFormData(prev => ({
+            ...prev,
+            dates: [...prev.dates, { day: 'จันทร์', start: 8.0, end: 9.0, sec: '' }]
+        }));
+        setActiveDateIndex(formData.dates.length);
+    };
+
+    const removeDateEntry = (index: number) => {
+        if (formData.dates.length <= 1) {
+            Alert.alert('ข้อผิดพลาด', 'ต้องมีอย่างน้อย 1 วันเรียน');
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            dates: prev.dates.filter((_, i) => i !== index)
+        }));
+        setActiveDateIndex(Math.max(0, activeDateIndex - 1));
+    };
+
+    const handleTimeChange = (_event: any, selectedDate?: Date) => {
         if (Platform.OS === 'android') {
             setShowPicker(null);
         }
@@ -75,14 +116,55 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
             const hours = selectedDate.getHours();
             const minutes = selectedDate.getMinutes();
             const numericTime = parseFloat(`${hours}.${minutes < 10 ? '0' + minutes : minutes}`);
-            handleChange(showPicker, numericTime);
+            handleDateFieldChange(activeDateIndex, showPicker, numericTime);
         }
     };
 
     // แปลง number กลับเป็น string สำหรับแสดงผลบนปุ่ม
     const formatTimeDisplay = (numTime: number) => {
+        if (isNaN(numTime)) return '--:--';
         const timeStr = numTime.toFixed(2);
         return timeStr.replace('.', ':');
+    };
+
+    const validateDates = (excludeId?: string): boolean => {
+        // Validate each date entry
+        for (let i = 0; i < formData.dates.length; i++) {
+            const dateEntry = formData.dates[i];
+            if (dateEntry.start >= dateEntry.end) {
+                Alert.alert('ข้อผิดพลาด', `วันที่ ${i + 1}: เวลาเริ่มต้องน้อยกว่าเวลาจบ`);
+                return false;
+            }
+        }
+
+        // Check for internal overlap (within the same form's dates)
+        for (let i = 0; i < formData.dates.length; i++) {
+            for (let j = i + 1; j < formData.dates.length; j++) {
+                if (formData.dates[i].day === formData.dates[j].day &&
+                    formData.dates[i].start < formData.dates[j].end &&
+                    formData.dates[i].end > formData.dates[j].start) {
+                    Alert.alert('ข้อผิดพลาด', `วันเรียนที่ ${i + 1} และ ${j + 1} มีเวลาซ้อนกัน`);
+                    return false;
+                }
+            }
+        }
+
+        // Check for overlap with existing classes
+        for (const dateEntry of formData.dates) {
+            for (const existingClass of allClass) {
+                if (excludeId && existingClass.id === excludeId) continue;
+                for (const existingDate of existingClass.dates) {
+                    if (existingDate.day === dateEntry.day &&
+                        existingDate.start < dateEntry.end &&
+                        existingDate.end > dateEntry.start) {
+                        Alert.alert('ข้อผิดพลาด', `วัน${dateEntry.day} เวลา ${formatTimeDisplay(dateEntry.start)}-${formatTimeDisplay(dateEntry.end)} ซ้อนกับวิชา ${existingClass.class_name}`);
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     };
 
     const handleSave = async () => {
@@ -92,22 +174,14 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
             return
         }
 
-        if (formData.start >= formData.end) {
-            Alert.alert('ข้อผิดพลาด', 'เวลาเริ่มต้องน้อยกว่าเวลาจบ')
-            return
-        }
-        // validate exit class code 
-        const exitClass = allClass.find(c => c.class_code === formData.class_code && c.sec === formData.sec)
+        // validate exit class code
+        const exitClass = allClass.find(c => c.class_code === formData.class_code)
         if (exitClass) {
-            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาและหมู่ซ้ำได้')
+            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาซ้ำได้')
             return
         }
-        // validate time
-        const overlabClass = allClass.filter(a => a.day === formData.day).find(old => old.start < formData.end && old.end > formData.start)
-        if (overlabClass) {
-            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาเวลาซ้ำกันได้')
-            return
-        }
+
+        if (!validateDates()) return;
 
         try {
             setIsSaving(true)
@@ -118,11 +192,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                 ...formData,
                 userId: auth.currentUser.uid
             })
-            setFormData({
-                class_code: '', class_name: '', room: '',
-                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0,
-                sec: ''
-            });
+            setFormData({ ...defaultFormData, dates: [{ day: 'จันทร์', start: 8.0, end: 9.0, sec: '' }] });
 
             if (onSuccess) onSuccess()
 
@@ -139,22 +209,15 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
             return
         }
 
-        if (formData.start >= formData.end) {
-            Alert.alert('ข้อผิดพลาด', 'เวลาเริ่มต้องน้อยกว่าเวลาจบ')
-            return
-        }
-        // validate exit class code 
-        const exitClass = allClass.find(c => c.class_code === formData.class_code && c.sec === formData.sec && c.id !== selectedClass?.id)
+        // validate exit class code
+        const exitClass = allClass.find(c => c.class_code === formData.class_code && c.id !== selectedClass?.id)
         if (exitClass) {
-            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาและหมู่ซ้ำได้')
+            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาซ้ำได้')
             return
         }
-        // validate time
-        const overlabClass = allClass.filter(a => a.day === formData.day).find(old => old.start < formData.end && old.end > formData.start && old.id !== selectedClass?.id)
-        if (overlabClass) {
-            Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเพิ่มวิชาเวลาซ้ำกันได้')
-            return
-        }
+
+        if (!validateDates(selectedClass?.id)) return;
+
         try {
             setIsSaving(true)
             if (!auth.currentUser?.uid) {
@@ -165,11 +228,7 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                 ...formData,
                 userId: auth.currentUser.uid
             })
-            setFormData({
-                class_code: '', class_name: '', room: '',
-                professor_name: '', day: 'จันทร์', start: 8.0, end: 9.0,
-                sec: ''
-            });
+            setFormData({ ...defaultFormData, dates: [{ day: 'จันทร์', start: 8.0, end: 9.0, sec: '' }] });
 
             if (onSuccess) onSuccess()
 
@@ -286,13 +345,6 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                         />
                         <TextInput
                             style={styles.input}
-                            placeholder="หมู่เรียน เช่น 701"
-                            placeholderTextColor={THEME.TEXT_SUB}
-                            value={formData.sec}
-                            onChangeText={(text) => handleChange('sec', text)}
-                        />
-                        <TextInput
-                            style={styles.input}
                             placeholder="ชื่อวิชา"
                             placeholderTextColor={THEME.TEXT_SUB}
                             value={formData.class_name}
@@ -313,45 +365,72 @@ export default function StudyClassModal({ visible, onClose, onSuccess, selectedC
                             onChangeText={(text) => handleChange('professor_name', text)}
                         />
 
-                        <Text style={styles.sectionLabel}>วันเรียน</Text>
-                        <View style={styles.pickerContainer}>
-                            <Picker
-                                selectedValue={formData.day}
-                                onValueChange={(itemValue) => handleChange('day', itemValue)}
-                                style={styles.picker}
-                                dropdownIconColor={THEME.PRIMARY} // สีไอคอนลูกศรบน Android
-                            >
-                                {DAYS_OF_WEEK.map((day) => (
-                                    <Picker.Item
-                                        key={day}
-                                        label={day}
-                                        value={day}
-                                        color={THEME.TEXT_MAIN} // สีตัวอักษรของแต่ละ Item
-                                    />
-                                ))}
-                            </Picker>
-                        </View>
+                        {formData.dates.map((dateEntry, index) => (
+                            <View key={index} style={{ marginBottom: 16, padding: 12, backgroundColor: activeDateIndex === index ? THEME.CARD_BG : 'transparent', borderRadius: 8, borderWidth: 1, borderColor: THEME.CARD_BG }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <Text style={styles.sectionLabel}>วันเรียนที่ {index + 1}</Text>
+                                    {formData.dates.length > 1 && (
+                                        <TouchableOpacity onPress={() => removeDateEntry(index)}>
+                                            <Text style={{ color: THEME.ERROR, fontFamily: 'BOLD', fontSize: 14 }}>ลบ</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
 
-                        <Text style={styles.sectionLabel}>เวลาเรียน</Text>
-                        <View style={styles.timeContainer}>
-                            <TouchableOpacity
-                                style={styles.timeButton}
-                                onPress={() => setShowPicker('start')}
-                            >
-                                <Text style={styles.timeLabel}>เริ่ม</Text>
-                                <Text style={styles.timeValue}>{formatTimeDisplay(formData.start)}</Text>
-                            </TouchableOpacity>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="หมู่เรียน เช่น 701"
+                                    placeholderTextColor={THEME.TEXT_SUB}
+                                    value={dateEntry.sec}
+                                    onChangeText={(text) => handleDateFieldChange(index, 'sec', text)}
+                                />
 
-                            <Text style={styles.timeToText}>ถึง</Text>
+                                <View style={styles.pickerContainer}>
+                                    <Picker
+                                        selectedValue={dateEntry.day}
+                                        onValueChange={(itemValue) => handleDateFieldChange(index, 'day', itemValue)}
+                                        style={styles.picker}
+                                        dropdownIconColor={THEME.PRIMARY}
+                                    >
+                                        {DAYS_OF_WEEK.map((day) => (
+                                            <Picker.Item
+                                                key={day}
+                                                label={day}
+                                                value={day}
+                                                color={THEME.TEXT_MAIN}
+                                            />
+                                        ))}
+                                    </Picker>
+                                </View>
 
-                            <TouchableOpacity
-                                style={styles.timeButton}
-                                onPress={() => setShowPicker('end')}
-                            >
-                                <Text style={styles.timeLabel}>สิ้นสุด</Text>
-                                <Text style={styles.timeValue}>{formatTimeDisplay(formData.end)}</Text>
-                            </TouchableOpacity>
-                        </View>
+                                <Text style={[styles.sectionLabel, { marginTop: 0 }]}>เวลาเรียน</Text>
+                                <View style={styles.timeContainer}>
+                                    <TouchableOpacity
+                                        style={styles.timeButton}
+                                        onPress={() => { setActiveDateIndex(index); setShowPicker('start'); }}
+                                    >
+                                        <Text style={styles.timeLabel}>เริ่ม</Text>
+                                        <Text style={styles.timeValue}>{formatTimeDisplay(dateEntry.start)}</Text>
+                                    </TouchableOpacity>
+
+                                    <Text style={styles.timeToText}>ถึง</Text>
+
+                                    <TouchableOpacity
+                                        style={styles.timeButton}
+                                        onPress={() => { setActiveDateIndex(index); setShowPicker('end'); }}
+                                    >
+                                        <Text style={styles.timeLabel}>สิ้นสุด</Text>
+                                        <Text style={styles.timeValue}>{formatTimeDisplay(dateEntry.end)}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+
+                        <TouchableOpacity
+                            style={{ alignItems: 'center', paddingVertical: 10, borderWidth: 1, borderColor: THEME.PRIMARY, borderRadius: 8, borderStyle: 'dashed', marginBottom: 16 }}
+                            onPress={addDateEntry}
+                        >
+                            <Text style={{ color: THEME.PRIMARY, fontFamily: 'BOLD', fontSize: 16 }}>+ เพิ่มวันเรียน</Text>
+                        </TouchableOpacity>
 
                         {showPicker && (
                             <DateTimePicker

@@ -9,10 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  Alert
 } from 'react-native';
 import { auth } from '../../firebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword , sendPasswordResetEmail} from 'firebase/auth';
 
 import THEME from '../../theme';
 
@@ -50,6 +51,20 @@ export default function AuthScreen() {
       setIsLoading(false);
     }
   };
+
+  const handleResetPassword = async () => {
+    if(!email.trim()) {
+      setErrorMessage('กรุณากรอกอีเมลเพื่อรีเซ็ตรหัสผ่าน');
+      return;
+    }
+    setErrorMessage('');
+    try {
+        await sendPasswordResetEmail(auth, email);
+        Alert.alert("สำเร็จ", "ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลแล้ว");
+      } catch (error) {
+        Alert.alert("เกิดข้อผิดพลาด", (error as Error).message);
+      }
+  }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -117,6 +132,18 @@ export default function AuthScreen() {
               </Text>
             </Text>
           </TouchableOpacity>
+
+            {/* Future: Add "Forgot Password?" link here */}
+            {isLogin && (
+              <TouchableOpacity 
+                onPress={handleResetPassword}
+                style={[styles.toggleContainer, { marginTop: 12 }]}
+              >
+                <Text style={styles.toggleText}>
+                  ลืมรหัสผ่าน?
+                </Text>
+              </TouchableOpacity>
+            )}
         </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>

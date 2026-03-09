@@ -8,7 +8,7 @@ import { collection, doc, getDoc, getDocs, sum } from "firebase/firestore";
 import { NativeBottomTabScreenProps } from "@react-navigation/bottom-tabs/unstable";
 import { RootTabsParamsLists } from "../../App";
 import DAYS_OF_WEEK from "../constants/day";
-import { ExamType, StudyType } from "./TimetableScreen";
+import { ExamType, StudyResponseType ,StudyType } from "./TimetableScreen";
 import type { EvenType, StudyPlanType } from "./PlannerScreen";
 
 const SkeletonItem = ({ width, height, borderRadius = 8, style }: any) => {
@@ -83,13 +83,32 @@ export default function DashboardScreen({ navigation }: Props) {
     try {
       if (!auth.currentUser?.uid) return
       const studySnap = await getDocs(collection(db, 'users', auth.currentUser.uid, 'class'));
-      const allClasss: StudyType[] = studySnap.docs.map(doc => ({
+      const resClassData: StudyResponseType[] = studySnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as StudyType));
+      } as StudyResponseType));
 
       const today = new Date()
       const todayIndex = today.getDay()
+
+      const allClasss : StudyType[] = []
+      resClassData.forEach(classItem => {
+        classItem.dates.forEach(date => {
+          allClasss.push({
+            id: classItem.id,
+            class_code: classItem.class_code,
+            class_name: classItem.class_name,
+            room: classItem.room,
+            sec: date.sec,
+            professor_name: classItem.professor_name,
+            day: date.day,
+            start: date.start,
+            end: date.end,
+            userId: classItem.userId
+          })
+      })
+    })
+
 
       const classWithDayAhead = allClasss.map(cls => {
         const clsDayIndex = DAYS_OF_WEEK.findIndex(d => d === cls.day)
@@ -411,6 +430,7 @@ return (
             </View>
             <Text style={styles.courseName}>{nextClass.class_name}</Text>
             <Text style={styles.location}>ห้อง {nextClass.room}</Text>
+            <Text style={styles.location}>หมู่เรียน {nextClass.sec}</Text>
           </View>
         ) : (
           <View style={[styles.card, styles.emptyCard]}>
