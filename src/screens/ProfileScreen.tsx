@@ -9,14 +9,20 @@ import {
   ScrollView, 
   KeyboardAvoidingView, 
   Platform,
-  ActivityIndicator
+  ActivityIndicator ,
+  Image
 } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import { auth, db } from '../../firebaseConfig';
 import THEME from '../../theme';
+
+const CLOUDINARY_PRESET = 'study-sync';
+const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/draj8sje7/image/upload';
+
 
 export default function ProfileScreen() {
   const user = auth.currentUser;
@@ -25,12 +31,13 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [faculty, setFaculty] = useState('');
   const [year, setYear] = useState('');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
+   const fetchUserData = async () => {
       if (!user) return;
       try {
         const docRef = doc(db, 'users', user.uid);
@@ -41,6 +48,7 @@ export default function ProfileScreen() {
           setName(data.name || '');
           setFaculty(data.faculty || '');
           setYear(data.year || '');
+          setProfileImage(data.profileImage || null);
         }
       } catch (error) {
         Alert.alert('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลผู้ใช้ได้');
@@ -48,7 +56,7 @@ export default function ProfileScreen() {
         setIsFetching(false);
       }
     };
-
+  useEffect(() => {
     fetchUserData();
   }, [user]);
 
@@ -62,7 +70,7 @@ export default function ProfileScreen() {
         faculty: faculty.trim(),
         year: year.trim()
       }, { merge: true });
-      
+      fetchUserData()
       Alert.alert('สำเร็จ', 'บันทึกข้อมูลเรียบร้อยแล้ว');
     } catch (error) {
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้');
@@ -70,6 +78,63 @@ export default function ProfileScreen() {
       setIsLoading(false);
     }
   };
+
+
+  const pickImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.granted === false) {
+        Alert.alert('สิทธิ์ถูกปฏิเสธ', 'คุณต้องอนุญาตให้เข้าถึงรูปภาพเพื่อเปลี่ยนรูปโปรไฟล์');
+        return;
+      }
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!pickerResult.canceled) {
+        const imageUri = pickerResult.assets[0].uri;
+        handleImageUpload(imageUri);
+      }
+    } catch (error) {
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเลือกภาพได้ในขณะนี้');
+    }
+  }
+
+  const handleImageUpload = async (imageUri: string) => {
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'profile.jpg',
+    } as any);
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+
+    try {
+      setIsLoadingImage(true);
+      const response = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.secure_url) {
+        setProfileImage(data.secure_url);
+        await setDoc(doc(db, 'users', user!.uid), { profileImage: data.secure_url }, { merge: true });
+        Alert.alert('สำเร็จ', 'อัปโหลดรูปภาพเรียบร้อยแล้ว');
+      } else {
+        throw new Error('ไม่สามารถอัปโหลดรูปภาพได้');
+      }
+    } catch (error) {
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถอัปโหลดรูปภาพได้ในขณะนี้');
+    }finally{
+      setIsLoadingImage(false);
+    }
+  }
+
 
   const handleClearData = () => {
     if (!user) return;
@@ -157,13 +222,26 @@ export default function ProfileScreen() {
           <Text style={styles.headerTitle}>โปรไฟล์ส่วนตัว</Text>
         </View>
 
-        <View style={styles.profileCard}>
+        <TouchableOpacity 
+          style={styles.profileCard} 
+          onPress={pickImage} 
+          disabled={isLoading || isLoadingImage}
+        >
+          {isLoadingImage ??
+            <ActivityIndicator color={THEME.PRIMARY} />
+          }     
+          
           <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={40} color={THEME.PRIMARY} />
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+            ) : (
+              <Ionicons name="person" size={40} color={THEME.PRIMARY} />
+            )}
           </View>
           <Text style={styles.emailLabel}>ล็อกอินผ่านอีเมล</Text>
           <Text style={styles.emailText}>{userEmail}</Text>
-        </View>
+          <Text style={styles.emailLabel}>แตะเพื่อเปลี่ยนรูปภาพ</Text>
+        </TouchableOpacity>
 
         <View style={styles.formContainer}>
           <Text style={styles.inputLabel}>ชื่อ - นามสกุล</Text>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "study-sync-v2",
+    "name": "study-sync",
     "slug": "study-sync-v2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,10 +21,16 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.chillingmay.studysyncv2"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3ce62d66-37f0-41f9-a39b-2466b2f9916e"
+      }
     }
   }
 }
