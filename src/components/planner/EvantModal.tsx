@@ -46,7 +46,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             setFormData({
                 title: selectedEvent?.title || '',
                 date: selectedEvent?.date || undefined,
-                start: selectedEvent?.start || undefined,
+                start: selectedEvent?.start || selectedEvent?.start === 0 ? 0 : undefined,
                 end: selectedEvent?.end || undefined,
                 description: selectedEvent?.description || '',
             })
@@ -88,6 +88,10 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกหัวข้อกิจกรรม')
             return
         }
+        if((formData.start === undefined && formData.end !== undefined) || (formData.start !== undefined && formData.end === undefined)) {
+            Alert.alert('ข้อผิดพลาด', 'กรุณากรอกเวลาเริ่มต้นและเวลาสิ้นสุดให้ครบถ้วน')
+            return
+        }
         // เชคว่าเพิ่ม อีเว้น ชนกันมั้ย
         const isOverlap = isEditing ?
             allEvents.find(e => {
@@ -102,12 +106,13 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             return
         }
 
+        console.log(formData)
         try {
             setIsSaving(true)
 
             const payloadData = {
                 date : formData.date || '',
-                start : formData.start || '',
+                start : formData.start || formData.start === 0 ? 0 : '',
                 end : formData.end || '',
                 title : formData.title || '',
                 description : formData.description || '',
@@ -138,6 +143,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
     }
 
     const formattimeString = (time: number) => {
+        if(time === 0) return '00:00'
         const [hour, minute] = String(time).split('.')
         const hourStirng = hour.padStart(2, '0')
         const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';

@@ -196,6 +196,7 @@ export default function PlannerScreen() {
     }
 
     const formattimeString = (time: number) => {
+        if(time === 0) return '00:00'
         const [hour, minute] = String(time).split('.')
         const hourString = hour.padStart(2, '0')
         const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
@@ -235,7 +236,7 @@ export default function PlannerScreen() {
                         </Text>
                     ) : null}
                     <Text style={[styles.eventTime, isDone && styles.textMuted]}>
-                        วันที่ {item.date} เวลา { item.start &&  formattimeString(item.start)} - {item.end && formattimeString(item.end)}
+                        วันที่ {item.date} เวลา { (item.start||item.start===0) &&  formattimeString(item.start)} - {item.end && formattimeString(item.end)}
                     </Text>
                     
                 </View>
