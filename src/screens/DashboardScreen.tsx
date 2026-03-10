@@ -1,10 +1,10 @@
 import React, { useCallback, useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Pressable } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Pressable, Modal, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import THEME from "../../theme";
 import { auth, db } from "../../firebaseConfig";
-import { collection, doc, getDoc, getDocs, sum } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, sum } from "firebase/firestore";
 import { NativeBottomTabScreenProps } from "@react-navigation/bottom-tabs/unstable";
 import { RootTabsParamsLists } from "../../App";
 import DAYS_OF_WEEK from "../constants/day";
@@ -46,7 +46,72 @@ interface ExamTypeDashboard {
 
 type Props = NativeBottomTabScreenProps<RootTabsParamsLists>
 
+
+const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onClose: () => void, onSuccess: () => void }) =>{
+  const [eventName , setEventName] = useState('')
+  // MOdal for quick add event or study plan or exam
+  const handleAdd = async () => {
+    if(!eventName){
+      return Alert.alert('กรุณากรอกชื่อกิจกรรม')
+    }
+    const payload ={ 
+            date : '',
+            start : '',
+            end:'',
+            title : eventName,
+            description : '',
+            userId : auth.currentUser?.uid as string,
+            status :'not_done',
+            createdAt :new Date().toISOString()
+        }
+
+    try{
+      await addDoc(collection(db, 'users', auth.currentUser?.uid as string, 'events'), {
+            ...payload
+      })  
+      setEventName('')
+      onSuccess()
+    }catch(err){
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มกิจกรรมได้')
+    }
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+      navigationBarTranslucent={true}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>เพิ่มกิจกรรมอย่างรวดเร็ว</Text>
+          <TextInput  
+            style={styles.modalInput} 
+            placeholder="ชื่อกิจกรรม"
+            value={eventName}
+            onChangeText={setEventName}
+          />
+          <View style={{ flexDirection : 'row' , justifyContent : 'flex-end' , gap : 12 , marginTop : 20}}>
+            <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>  
+              <Text style={styles.modalCloseButtonText}>ปิด</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.modalAddButton} onPress={handleAdd}>
+              <Text style={styles.modalAddButtonText}>เพิ่ม</Text>  
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View> 
+    </Modal>
+  );
+}
+
 export default function DashboardScreen({ navigation }: Props) {
+
+  const [openQuickAddModal , setOpenQuickAddModal] = useState(false); 
 
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
   const [loadingClass, setLoadingClass] = useState<boolean>(true);
@@ -388,6 +453,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
 return (
   <SafeAreaView style={styles.container}>
+    <QuickAddModal visible={openQuickAddModal} onClose={() => setOpenQuickAddModal(false)} onSuccess={() => { setOpenQuickAddModal(false); fetchEventSummary(true) }} />
     <ScrollView contentContainerStyle={styles.scrollContent}>
 
       <View style={styles.header}>
@@ -404,7 +470,7 @@ return (
         )}
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => navigation.navigate('planner')}
+          onPress={() => setOpenQuickAddModal(true)} 
           activeOpacity={0.8}
         >
           <Text style={styles.fabIcon}>+</Text>
@@ -556,12 +622,61 @@ return (
       </View>
 
     </ScrollView>
-
+  
   </SafeAreaView>
 );
 }
 
 const styles = StyleSheet.create({
+  modalCloseButton :{
+    backgroundColor: THEME.CARD_BG,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalCloseButtonText : {
+    fontFamily: "BOLD",
+    fontSize: 14,
+    color: THEME.TEXT_MAIN, 
+  },
+  modalAddButton :{
+    backgroundColor: THEME.SECONDARY,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalAddButtonText : {
+    fontFamily: "BOLD",
+    fontSize: 14,
+    color: THEME.TEXT_MAIN, 
+  },  
+  modalOverlay : {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent : {
+    backgroundColor: THEME.CARD_BG,
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+  },
+  modalTitle : {
+    fontFamily: "BOLD",
+    fontSize: 18,
+    color: THEME.TEXT_MAIN,
+    marginBottom: 16,
+  },
+  modalInput : {
+    backgroundColor: THEME.BACKGROUND,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontFamily: "REGULAR",
+    fontSize: 14,
+    color: THEME.TEXT_MAIN,
+  },
   container: {
     flex: 1,
     backgroundColor: THEME.BACKGROUND,

@@ -27,6 +27,7 @@ interface EventModalProps {
     allEvents: EvenType[]
 }
 
+
 export default function EventModal({ visible, onClose, selectedEvent, onSuccess, allEvents }: EventModalProps) {
     const isEditing = !!selectedEvent
     const [isSaving, setIsSaving] = useState(false)
@@ -34,9 +35,9 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
 
     const [formData, setFormData] = useState<Partial<EvenType>>({
         title: '',
-        date: '',
-        start: 8.0,
-        end: 9.0,
+        date: undefined,
+        start: undefined,
+        end: undefined,
         description: '',
     })
 
@@ -44,9 +45,9 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
         if (visible) {
             setFormData({
                 title: selectedEvent?.title || '',
-                date: selectedEvent?.date || new Date().toLocaleDateString('th-TH'),
-                start: selectedEvent?.start || 8.0,
-                end: selectedEvent?.end || 9.0,
+                date: selectedEvent?.date || undefined,
+                start: selectedEvent?.start || undefined,
+                end: selectedEvent?.end || undefined,
                 description: selectedEvent?.description || '',
             })
         }
@@ -79,10 +80,6 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
     }
 
     const handleSave = async () => {
-        if (!formData.start || !formData.end) {
-            Alert.alert('ข้อผิดพลาด', 'กรุณาเลือกเวลาเริ่มต้นและเวลาสิ้นสุด')
-            return
-        }
         if (formData.start !== undefined && formData.end !== undefined && formData.start >= formData.end) {
             Alert.alert('ข้อผิดพลาด', 'เวลาเริ่มต้นต้องน้อยกว่าเวลาสิ้นสุด')
             return
@@ -108,17 +105,24 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
         try {
             setIsSaving(true)
 
+            const payloadData = {
+                date : formData.date || '',
+                start : formData.start || '',
+                end : formData.end || '',
+                title : formData.title || '',
+                description : formData.description || '',
+                userId : auth.currentUser?.uid as string,
+                status : selectedEvent?.status || 'not_done',
+                createdAt : selectedEvent?.createdAt || new Date().toISOString()
+            }
+
             if (isEditing && selectedEvent) {
                 await setDoc(doc(db, 'users', auth.currentUser?.uid as string, 'events', selectedEvent.id), {
-                    ...formData,
-                    status: selectedEvent.status,
-                    userId: auth.currentUser?.uid as string
+                    ...payloadData,
                 } as EvenType)
             } else {
                 await addDoc(collection(db, 'users', auth.currentUser?.uid as string, 'events'), {
-                    ...formData,
-                    status: 'not_done',
-                    userId: auth.currentUser?.uid as string
+                    ...payloadData
                 } as EvenType)
             }
 
@@ -126,6 +130,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             onClose()
         } catch (error) {
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกกิจกรรมได้ กรุณาลองใหม่อีกครั้ง')
+            console.log('Error saving event:', error)
             setIsSaving(false)
         } finally {
             setIsSaving(false)

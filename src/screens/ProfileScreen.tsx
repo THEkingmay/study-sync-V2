@@ -84,13 +84,13 @@ export default function ProfileScreen() {
           onPress: async () => {
             setIsLoading(true);
             try {
-              const userRef = doc(db, 'users', user.uid);
+              // const userRef = doc(db, 'users', user.uid);
               const classRef = collection(db, 'users', user.uid , 'class');
               const eventRef = collection(db, 'users', user.uid , 'events');
               const studyPlanRef = collection(db, 'users', user.uid , 'study_plans');
               const examRef = collection(db, 'users', user.uid , 'exam');
 
-              await deleteDoc(userRef);
+              // await deleteDoc(userRef);
               const deleteCollection = async (colRef: any) => {
                 const snapshot = await getDocs(colRef);  
                 snapshot.forEach(async (doc: any) => {
@@ -102,9 +102,9 @@ export default function ProfileScreen() {
               await deleteCollection(studyPlanRef);
               await deleteCollection(examRef);
 
-              setName('');
-              setFaculty('');
-              setYear('');
+              // setName('');
+              // setFaculty('');
+              // setYear('');
               Alert.alert('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว');
             } catch (error) {
               Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้');

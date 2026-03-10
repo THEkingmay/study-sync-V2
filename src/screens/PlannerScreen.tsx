@@ -17,7 +17,8 @@ export type EvenType = {
     end: number,
     description: string,
     status: 'not_done' | 'done',
-    userId: string
+    userId: string ,
+    createdAt: string
 }
 
 export type StudyPlanType = {
@@ -50,16 +51,23 @@ export default function PlannerScreen() {
                 ...doc.data()
             } as EvenType))
 
+            // const sortedEvents = eventList.sort((a, b) => {
+            //     const [dayA, monthA, yearA] = a.date.split('/').map(Number)
+            //     const [dayB, monthB, yearB] = b.date.split('/').map(Number)
+            //     const dateA = new Date(yearA, monthA - 1, dayA)
+            //     const dateB = new Date(yearB, monthB - 1, dayB)
+            //     // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
+            //     if (dateA.getTime() === dateB.getTime()) {
+            //         return a.start - b.start
+            //     }
+            //     return dateA.getTime() - dateB.getTime()
+            // })
+
+            // sort by createdAt desc
             const sortedEvents = eventList.sort((a, b) => {
-                const [dayA, monthA, yearA] = a.date.split('/').map(Number)
-                const [dayB, monthB, yearB] = b.date.split('/').map(Number)
-                const dateA = new Date(yearA, monthA - 1, dayA)
-                const dateB = new Date(yearB, monthB - 1, dayB)
-                // ถ้าวันเดียวกันให้เรียงตามเวลาเริ่มต้น
-                if (dateA.getTime() === dateB.getTime()) {
-                    return a.start - b.start
-                }
-                return dateA.getTime() - dateB.getTime()
+                const dateA = new Date(a.createdAt)
+                const dateB = new Date(b.createdAt)
+                return dateB.getTime() - dateA.getTime()
             })
 
             setEvent(sortedEvents)
@@ -209,6 +217,15 @@ export default function PlannerScreen() {
                 </TouchableOpacity>
 
                 <View style={styles.eventContent}>
+                    <Text style={[styles.eventTime, isDone && styles.textMuted]}>
+                        สร้างเมื่อ {new Date(item.createdAt).toLocaleDateString('th-TH', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </Text>
                     <Text style={[styles.eventTitle, isDone && styles.textMuted]}>
                         {item.title}
                     </Text>
@@ -218,8 +235,9 @@ export default function PlannerScreen() {
                         </Text>
                     ) : null}
                     <Text style={[styles.eventTime, isDone && styles.textMuted]}>
-                        {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                        วันที่ {item.date} เวลา { item.start &&  formattimeString(item.start)} - {item.end && formattimeString(item.end)}
                     </Text>
+                    
                 </View>
 
                 <View style={styles.eventActions}>
@@ -263,7 +281,7 @@ export default function PlannerScreen() {
                         </Text>
                     ) : null}
                     <Text style={[styles.eventTime, isDone && styles.textMuted]}>
-                        {item.date} • {formattimeString(item.start)} - {formattimeString(item.end)}
+                        วันที่ {item.date} เวลา { item.start &&  formattimeString(item.start)} - {item.end && formattimeString(item.end)}
                     </Text>
                 </View>
 
@@ -482,7 +500,7 @@ const styles = StyleSheet.create({
     },
     eventTime: {
         fontFamily: 'REGULAR',
-        fontSize: 13,
+        fontSize: 10,
         color: THEME.TEXT_SUB,
     },
     textMuted: {
