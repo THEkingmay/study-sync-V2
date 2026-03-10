@@ -46,14 +46,17 @@ interface ExamTypeDashboard {
 
 type Props = NativeBottomTabScreenProps<RootTabsParamsLists>
 
-
 const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onClose: () => void, onSuccess: () => void }) =>{
   const [eventName , setEventName] = useState('')
-  // MOdal for quick add event or study plan or exam
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleAdd = async () => {
-    if(!eventName){
-      return Alert.alert('กรุณากรอกชื่อกิจกรรม')
+    if(!eventName.trim()){
+      Alert.alert('แจ้งเตือน', 'กรุณากรอกชื่อกิจกรรม')
+      return
     }
+
+    setIsSubmitting(true)
     const payload ={ 
             date : '',
             start : '',
@@ -70,9 +73,18 @@ const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onC
             ...payload
       })  
       setEventName('')
-      onSuccess()
+      Alert.alert('สำเร็จ', 'เพิ่มกิจกรรมเรียบร้อยแล้ว', [
+        {
+          text: 'ตรวจสอบ',
+          onPress: () => {
+            onSuccess()
+          }
+        }
+      ])
     }catch(err){
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มกิจกรรมได้')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -93,14 +105,25 @@ const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onC
             placeholder="ชื่อกิจกรรม"
             value={eventName}
             onChangeText={setEventName}
+            editable={!isSubmitting}
           />
           <View style={{ flexDirection : 'row' , justifyContent : 'flex-end' , gap : 12 , marginTop : 20}}>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>  
+            <TouchableOpacity 
+              style={styles.modalCloseButton} 
+              onPress={onClose}
+              disabled={isSubmitting}
+            >  
               <Text style={styles.modalCloseButtonText}>ปิด</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.modalAddButton} onPress={handleAdd}>
-              <Text style={styles.modalAddButtonText}>เพิ่ม</Text>  
+            <TouchableOpacity 
+              style={[styles.modalAddButton, isSubmitting && { opacity: 0.5 }]} 
+              onPress={handleAdd}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.modalAddButtonText}>
+                {isSubmitting ? 'กำลังเพิ่ม...' : 'เพิ่ม'}
+              </Text>  
             </TouchableOpacity>
           </View>
         </View>
