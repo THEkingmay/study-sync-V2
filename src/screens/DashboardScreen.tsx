@@ -343,7 +343,7 @@ export default function DashboardScreen({ navigation }: Props) {
     }, [])
   );
 
-  const renderEventSummary = async (filter: 'week' | 'month') => {
+  const renderEventSummary =  (filter: 'week' | 'month') => {
     const filteredEvents = allEvent.filter(event => {
       const [day, month, year] = event.date.split('/')
       const eventDate = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)

@@ -88,6 +88,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกหัวข้อกิจกรรม')
             return
         }
+        
         if((formData.start === undefined && formData.end !== undefined) || (formData.start !== undefined && formData.end === undefined)) {
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกเวลาเริ่มต้นและเวลาสิ้นสุดให้ครบถ้วน')
             return
@@ -106,7 +107,8 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             return
         }
 
-        console.log(formData)
+
+
         try {
             setIsSaving(true)
 
@@ -120,6 +122,8 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
                 status : selectedEvent?.status || 'not_done',
                 createdAt : selectedEvent?.createdAt || new Date().toISOString()
             }
+
+        
 
             if (isEditing && selectedEvent) {
                 await setDoc(doc(db, 'users', auth.currentUser?.uid as string, 'events', selectedEvent.id), {
