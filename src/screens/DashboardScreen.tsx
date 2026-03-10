@@ -8,7 +8,7 @@ import { addDoc, collection, doc, getDoc, getDocs, sum } from "firebase/firestor
 import { NativeBottomTabScreenProps } from "@react-navigation/bottom-tabs/unstable";
 import { RootTabsParamsLists } from "../../App";
 import DAYS_OF_WEEK from "../constants/day";
-import { ExamType, StudyResponseType ,StudyType } from "./TimetableScreen";
+import { ExamType, StudyResponseType, StudyType } from "./TimetableScreen";
 import type { EvenType, StudyPlanType } from "./PlannerScreen";
 
 const SkeletonItem = ({ width, height, borderRadius = 8, style }: any) => {
@@ -46,32 +46,32 @@ interface ExamTypeDashboard {
 
 type Props = NativeBottomTabScreenProps<RootTabsParamsLists>
 
-const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onClose: () => void, onSuccess: () => void }) =>{
-  const [eventName , setEventName] = useState('')
+const QuickAddModal = ({ visible, onClose, onSuccess }: { visible: boolean, onClose: () => void, onSuccess: () => void }) => {
+  const [eventName, setEventName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleAdd = async () => {
-    if(!eventName.trim()){
+    if (!eventName.trim()) {
       Alert.alert('แจ้งเตือน', 'กรุณากรอกชื่อกิจกรรม')
       return
     }
 
     setIsSubmitting(true)
-    const payload ={ 
-            date : '',
-            start : '',
-            end:'',
-            title : eventName,
-            description : '',
-            userId : auth.currentUser?.uid as string,
-            status :'not_done',
-            createdAt :new Date().toISOString()
-        }
+    const payload = {
+      date: '',
+      start: '',
+      end: '',
+      title: eventName,
+      description: '',
+      userId: auth.currentUser?.uid as string,
+      status: 'not_done',
+      createdAt: new Date().toISOString()
+    }
 
-    try{
+    try {
       await addDoc(collection(db, 'users', auth.currentUser?.uid as string, 'events'), {
-            ...payload
-      })  
+        ...payload
+      })
       setEventName('')
       Alert.alert('สำเร็จ', 'เพิ่มกิจกรรมเรียบร้อยแล้ว', [
         {
@@ -81,7 +81,7 @@ const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onC
           }
         }
       ])
-    }catch(err){
+    } catch (err) {
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเพิ่มกิจกรรมได้')
     } finally {
       setIsSubmitting(false)
@@ -100,41 +100,41 @@ const QuickAddModal = ({visible , onClose , onSuccess} : { visible: boolean, onC
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>เพิ่มกิจกรรมอย่างรวดเร็ว</Text>
-          <TextInput  
-            style={styles.modalInput} 
+          <TextInput
+            style={styles.modalInput}
             placeholder="ชื่อกิจกรรม"
             value={eventName}
             onChangeText={setEventName}
             editable={!isSubmitting}
           />
-          <View style={{ flexDirection : 'row' , justifyContent : 'flex-end' , gap : 12 , marginTop : 20}}>
-            <TouchableOpacity 
-              style={styles.modalCloseButton} 
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
               onPress={onClose}
               disabled={isSubmitting}
-            >  
+            >
               <Text style={styles.modalCloseButtonText}>ปิด</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.modalAddButton, isSubmitting && { opacity: 0.5 }]} 
+            <TouchableOpacity
+              style={[styles.modalAddButton, isSubmitting && { opacity: 0.5 }]}
               onPress={handleAdd}
               disabled={isSubmitting}
             >
               <Text style={styles.modalAddButtonText}>
                 {isSubmitting ? 'กำลังเพิ่ม...' : 'เพิ่ม'}
-              </Text>  
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View> 
+      </View>
     </Modal>
   );
 }
 
 export default function DashboardScreen({ navigation }: Props) {
 
-  const [openQuickAddModal , setOpenQuickAddModal] = useState(false); 
+  const [openQuickAddModal, setOpenQuickAddModal] = useState(false);
 
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
   const [loadingClass, setLoadingClass] = useState<boolean>(true);
@@ -179,7 +179,7 @@ export default function DashboardScreen({ navigation }: Props) {
       const today = new Date()
       const todayIndex = today.getDay()
 
-      const allClasss : StudyType[] = []
+      const allClasss: StudyType[] = []
       resClassData.forEach(classItem => {
         classItem.dates.forEach(date => {
           allClasss.push({
@@ -194,8 +194,8 @@ export default function DashboardScreen({ navigation }: Props) {
             end: date.end,
             userId: classItem.userId
           })
+        })
       })
-    })
 
 
       const classWithDayAhead = allClasss.map(cls => {
@@ -343,7 +343,7 @@ export default function DashboardScreen({ navigation }: Props) {
     }, [])
   );
 
-  const renderEventSummary =  (filter: 'week' | 'month') => {
+  const renderEventSummary = (filter: 'week' | 'month') => {
     const filteredEvents = allEvent.filter(event => {
       const [day, month, year] = event.date.split('/')
       const eventDate = new Date(Number(year), Number(month) - 1, Number(day)).setHours(0, 0, 0, 0)
@@ -416,7 +416,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {/* Events Section */}
         {filteredEvents && filteredEvents.length > 0 && (
-          <View style={[styles.summarySection, { marginBottom: 5 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+          <View style={[styles.summarySection, { marginBottom: 5, backgroundColor: THEME.BACKGROUND, padding: 16, borderRadius: 12 }]}>
             <Text style={styles.summaryHeader}>กิจกรรม</Text>
             {filteredEvents.map((event, index) => (
               <View key={event.id}>
@@ -434,7 +434,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {/* Study Plans Section */}
         {filteredStudyPlans && filteredStudyPlans.length > 0 && (
-          <View style={[styles.summarySection, { marginBottom: 5 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+          <View style={[styles.summarySection, { marginBottom: 5, backgroundColor: THEME.BACKGROUND, padding: 16, borderRadius: 12 }]}>
             <Text style={styles.summaryHeader}>แผนการเรียน</Text>
             {filteredStudyPlans.map((plan, index) => (
               <View key={plan.id}>
@@ -452,7 +452,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {/* Exams Section */}
         {filteredExam && filteredExam.length > 0 && (
-          <View style={[styles.summarySection, { marginBottom: 0 , backgroundColor : THEME.BACKGROUND, padding: 16, borderRadius: 12}]}>
+          <View style={[styles.summarySection, { marginBottom: 0, backgroundColor: THEME.BACKGROUND, padding: 16, borderRadius: 12 }]}>
             <Text style={styles.summaryHeader}>การสอบ</Text>
             {filteredExam.map((exam, index) => (
               <View key={exam.id}>
@@ -474,231 +474,231 @@ export default function DashboardScreen({ navigation }: Props) {
     );
   }
   const formattimeString = (time: number) => {
-        if(time === 0) return '00:00'
-        const [hour, minute] = String(time).split('.')
-        const hourString = hour.padStart(2, '0')
-        const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
-        return `${hourString}:${minuteString}`
-    }
-return (
-  <SafeAreaView style={styles.container}>
-    <QuickAddModal visible={openQuickAddModal} onClose={() => setOpenQuickAddModal(false)} onSuccess={() => { setOpenQuickAddModal(false); fetchEventSummary(true) }} />
-    <ScrollView contentContainerStyle={styles.scrollContent}>
+    if (time === 0) return '00:00'
+    const [hour, minute] = String(time).split('.')
+    const hourString = hour.padStart(2, '0')
+    const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
+    return `${hourString}:${minuteString}`
+  }
+  return (
+    <SafeAreaView style={styles.container}>
+      <QuickAddModal visible={openQuickAddModal} onClose={() => setOpenQuickAddModal(false)} onSuccess={() => { setOpenQuickAddModal(false); fetchEventSummary(true) }} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
 
-      <View style={styles.header}>
-        {loadingUser ? (
-          <>
-            <SkeletonItem width={180} height={32} style={{ marginBottom: 8 }} />
-            <SkeletonItem width={220} height={20} />
-          </>
-        ) : (
-          <View>
-            <Text style={styles.greeting}>สวัสดี, {userName || "ผู้ใช้งาน"}</Text>
-            <Text style={styles.subtitle}>{lastTimeCheck}</Text>
-          </View>
-        )}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setOpenQuickAddModal(true)} 
-          activeOpacity={0.8}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>วิชาถัดไป</Text>
-        {loadingClass ? (
-          <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
-            <View style={styles.cardHeader}>
-              <SkeletonItem width={90} height={20} />
+        <View style={styles.header}>
+          {loadingUser ? (
+            <>
+              <SkeletonItem width={180} height={32} style={{ marginBottom: 8 }} />
+              <SkeletonItem width={220} height={20} />
+            </>
+          ) : (
+            <View>
+              <Text style={styles.greeting}>สวัสดี, {userName || "ผู้ใช้งาน"}</Text>
+              <Text style={styles.subtitle}>{lastTimeCheck}</Text>
             </View>
-            <SkeletonItem width={200} height={28} style={{ marginBottom: 8 }} />
-            <SkeletonItem width={120} height={20} />
-          </View>
-        ) : nextClass ? (
-          <View style={[styles.card, styles.primaryCard]}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.timeText}>
-              {nextClass.day} เวลา  {formattimeString(nextClass.start ?? 0)} น. - {formattimeString(nextClass.end ?? 0)} น.
+          )}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setOpenQuickAddModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.fabIcon}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>วิชาถัดไป</Text>
+          {loadingClass ? (
+            <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
+              <View style={styles.cardHeader}>
+                <SkeletonItem width={90} height={20} />
+              </View>
+              <SkeletonItem width={200} height={28} style={{ marginBottom: 8 }} />
+              <SkeletonItem width={120} height={20} />
+            </View>
+          ) : nextClass ? (
+            <View style={[styles.card, styles.primaryCard]}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.timeText}>
+                  {nextClass.day} เวลา  {formattimeString(nextClass.start ?? 0)} น. - {formattimeString(nextClass.end ?? 0)} น.
+                </Text>
+              </View>
+              <Text style={styles.courseName}>{nextClass.class_name}</Text>
+              <Text style={styles.location}>ห้อง {nextClass.room}</Text>
+              <Text style={styles.location}>หมู่เรียน {nextClass.sec}</Text>
+            </View>
+          ) : (
+            <View style={[styles.card, styles.emptyCard]}>
+              <Text style={styles.emptyStateText}>
+                ไม่พบวิชาเรียน
               </Text>
             </View>
-            <Text style={styles.courseName}>{nextClass.class_name}</Text>
-            <Text style={styles.location}>ห้อง {nextClass.room}</Text>
-            <Text style={styles.location}>หมู่เรียน {nextClass.sec}</Text>
-          </View>
-        ) : (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyStateText}>
-              ไม่พบวิชาเรียน
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>สอบใน 7 วันนี้</Text>
-        {loadingExams ? (
-          <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
-            <View style={styles.examRow}>
-              <View style={styles.examInfo}>
-                <SkeletonItem width={150} height={20} style={{ marginBottom: 6 }} />
-                <SkeletonItem width={100} height={16} />
-              </View>
-              <SkeletonItem width={40} height={20} />
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.examRow}>
-              <View style={styles.examInfo}>
-                <SkeletonItem width={170} height={20} style={{ marginBottom: 6 }} />
-                <SkeletonItem width={120} height={16} />
-              </View>
-              <SkeletonItem width={40} height={20} />
-            </View>
-          </View>
-        ) : sevenDaysExams.length > 0 ? (
-          <View style={styles.card}>
-            {sevenDaysExams.map((ex, index) => (
-              <View key={ex.id}>
-                <View style={styles.examRow}>
-                  <View style={styles.examInfo}>
-                    <View style={styles.examHeaderGroup}>
-                      <View style={styles.examTypeBadge}>
-                        <Text style={styles.examTypeBadgeText}>{ex.type}</Text>
-                      </View>
-                      <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
-                    </View>
-                    <Text style={styles.examDetailText}>วันที่ {ex.date}</Text>
-                    <Text style={styles.examDetailText}>เวลา {formattimeString(ex.start ?? 0)} - {formattimeString(ex.end ?? 0) } น.</Text>
-                    <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
-                  </View>
-
-                  <View style={styles.countdownContainer}>
-                    <Text style={[
-                      styles.countdownNumber,
-                      { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY }
-                    ]}>
-                      {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
-                    </Text>
-                    {ex.dayleft !== 0 && <Text style={styles.countdownLabel}>วัน</Text>}
-                  </View>
-                </View>
-
-                {index < sevenDaysExams.length - 1 && <View style={styles.divider} />}
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyStateText}>ไม่พบวิชาสอบในช่วง 7 วันข้างหน้า</Text>
-          </View>
-        )}
-      </View>
-
-
-      {/* filter section week , month */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>สรุปสิ่งที่ต้องทำ</Text>
-        {/* seletion 1สับปดาหน้า หรือ 1เดือนหน้า */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          <Pressable
-            onPress={() => setSelectedFilter('week')}
-            style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
-              },
-              {
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 12,
-                alignSelf: 'flex-start',
-                marginBottom: 16,
-                backgroundColor: selectedFilter === 'week' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
-                borderWidth: selectedFilter === 'week' ? 1 : 0,
-                borderColor: selectedFilter === 'week' ? THEME.PRIMARY : 'transparent',
-              }
-            ]}>
-            <Text style={{
-              fontFamily: "BOLD",
-              fontSize: 14,
-              color: THEME.PRIMARY,
-            }}>1 สัปดาห์หน้า</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setSelectedFilter('month')}
-            style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
-              },
-              {
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 12, alignSelf: 'flex-start',
-                marginBottom: 16,
-                backgroundColor: selectedFilter === 'month' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
-                borderWidth: selectedFilter === 'month' ? 1 : 0,
-                borderColor: selectedFilter === 'month' ? THEME.PRIMARY : 'transparent',
-              }
-            ]}>
-            <Text style={{
-              fontFamily: "BOLD",
-              fontSize: 14,
-              color: THEME.PRIMARY,
-            }}>1 เดือนหน้า</Text>
-
-          </Pressable>
+          )}
         </View>
-        {renderEventSummary(selectedFilter)}
-      </View>
 
-    </ScrollView>
-  
-  </SafeAreaView>
-);
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>สอบใน 7 วันนี้</Text>
+          {loadingExams ? (
+            <View style={[styles.card, { backgroundColor: THEME.BACKGROUND, borderColor: THEME.CARD_BG, borderWidth: 1 }]}>
+              <View style={styles.examRow}>
+                <View style={styles.examInfo}>
+                  <SkeletonItem width={150} height={20} style={{ marginBottom: 6 }} />
+                  <SkeletonItem width={100} height={16} />
+                </View>
+                <SkeletonItem width={40} height={20} />
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.examRow}>
+                <View style={styles.examInfo}>
+                  <SkeletonItem width={170} height={20} style={{ marginBottom: 6 }} />
+                  <SkeletonItem width={120} height={16} />
+                </View>
+                <SkeletonItem width={40} height={20} />
+              </View>
+            </View>
+          ) : sevenDaysExams.length > 0 ? (
+            <View style={styles.card}>
+              {sevenDaysExams.map((ex, index) => (
+                <View key={ex.id}>
+                  <View style={styles.examRow}>
+                    <View style={styles.examInfo}>
+                      <View style={styles.examHeaderGroup}>
+                        <View style={styles.examTypeBadge}>
+                          <Text style={styles.examTypeBadgeText}>{ex.type}</Text>
+                        </View>
+                        <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
+                      </View>
+                      <Text style={styles.examDetailText}>วันที่ {ex.date}</Text>
+                      <Text style={styles.examDetailText}>เวลา {formattimeString(ex.start ?? 0)} - {formattimeString(ex.end ?? 0)} น.</Text>
+                      <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
+                    </View>
+
+                    <View style={styles.countdownContainer}>
+                      <Text style={[
+                        styles.countdownNumber,
+                        { color: ex.dayleft && ex.dayleft <= 3 ? THEME.ERROR : THEME.PRIMARY }
+                      ]}>
+                        {ex.dayleft === 0 ? 'วันนี้' : ex.dayleft}
+                      </Text>
+                      {ex.dayleft !== 0 && <Text style={styles.countdownLabel}>วัน</Text>}
+                    </View>
+                  </View>
+
+                  {index < sevenDaysExams.length - 1 && <View style={styles.divider} />}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={[styles.card, styles.emptyCard]}>
+              <Text style={styles.emptyStateText}>ไม่พบวิชาสอบในช่วง 7 วันข้างหน้า</Text>
+            </View>
+          )}
+        </View>
+
+
+        {/* filter section week , month */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>สรุปสิ่งที่ต้องทำ</Text>
+          {/* seletion 1สับปดาหน้า หรือ 1เดือนหน้า */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <Pressable
+              onPress={() => setSelectedFilter('week')}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
+                },
+                {
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  alignSelf: 'flex-start',
+                  marginBottom: 16,
+                  backgroundColor: selectedFilter === 'week' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
+                  borderWidth: selectedFilter === 'week' ? 1 : 0,
+                  borderColor: selectedFilter === 'week' ? THEME.PRIMARY : 'transparent',
+                }
+              ]}>
+              <Text style={{
+                fontFamily: "BOLD",
+                fontSize: 14,
+                color: THEME.PRIMARY,
+              }}>1 สัปดาห์หน้า</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setSelectedFilter('month')}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: pressed ? THEME.PRIMARY + '20' : THEME.PRIMARY + '10',
+                },
+                {
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 12, alignSelf: 'flex-start',
+                  marginBottom: 16,
+                  backgroundColor: selectedFilter === 'month' ? THEME.PRIMARY + '30' : THEME.PRIMARY + '10',
+                  borderWidth: selectedFilter === 'month' ? 1 : 0,
+                  borderColor: selectedFilter === 'month' ? THEME.PRIMARY : 'transparent',
+                }
+              ]}>
+              <Text style={{
+                fontFamily: "BOLD",
+                fontSize: 14,
+                color: THEME.PRIMARY,
+              }}>1 เดือนหน้า</Text>
+
+            </Pressable>
+          </View>
+          {renderEventSummary(selectedFilter)}
+        </View>
+
+      </ScrollView>
+
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-  modalCloseButton :{
+  modalCloseButton: {
     backgroundColor: THEME.CARD_BG,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  modalCloseButtonText : {
+  modalCloseButtonText: {
     fontFamily: "BOLD",
     fontSize: 14,
-    color: THEME.TEXT_MAIN, 
+    color: THEME.TEXT_MAIN,
   },
-  modalAddButton :{
+  modalAddButton: {
     backgroundColor: THEME.SECONDARY,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  modalAddButtonText : {
+  modalAddButtonText: {
     fontFamily: "BOLD",
     fontSize: 14,
-    color: THEME.TEXT_MAIN, 
-  },  
-  modalOverlay : {
+    color: THEME.TEXT_MAIN,
+  },
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent : {
+  modalContent: {
     backgroundColor: THEME.CARD_BG,
     borderRadius: 16,
     padding: 24,
     width: '80%',
   },
-  modalTitle : {
+  modalTitle: {
     fontFamily: "BOLD",
     fontSize: 18,
     color: THEME.TEXT_MAIN,
     marginBottom: 16,
   },
-  modalInput : {
+  modalInput: {
     backgroundColor: THEME.BACKGROUND,
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
   summarySection: {
     marginBottom: 16,
   },
-  summaryHeader: {  
+  summaryHeader: {
     fontFamily: "BOLD",
     fontSize: 16,
     color: THEME.TEXT_MAIN,
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   },
   dateRangeText: {
     fontFamily: "BOLD",
-    fontSize: 14, 
+    fontSize: 14,
     color: THEME.TEXT_SUB,
     marginBottom: 12,
   },
@@ -788,10 +788,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 12, 
+    marginLeft: 12,
   },
   summaryBadgeText: {
-    fontFamily: "BOLD", 
+    fontFamily: "BOLD",
     fontSize: 10,
     color: THEME.PRIMARY,
   },
@@ -902,6 +902,9 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   fab: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
     width: 60,
     height: 60,
     borderRadius: 30,

@@ -16,8 +16,9 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker'
 import THEME from "../../../theme"
 import type { StudyPlanType } from "../../screens/PlannerScreen"
-import { addDoc, collection, doc, setDoc } from "firebase/firestore"
+import { addDoc, collection, doc, setDoc, getDocs } from "firebase/firestore"
 import { auth, db } from "../../../firebaseConfig"
+import { StudyResponseType, StudyType } from "../../screens/TimetableScreen"
 
 interface StudyPlanModalProps {
     visible: boolean
@@ -77,6 +78,45 @@ export default function StudyPlanModal({ visible, onClose, selectStudyPlan, onSu
         }
     }
 
+    const validateOverlapWithClass = async (date: string, start: number, end: number): Promise<boolean> => {
+        if (!date || start === undefined || end === undefined) return false
+        try {
+            const userId = auth.currentUser?.uid as string
+            const studySnap = await getDocs(collection(db, 'users', userId, 'class'))
+            const studyData: StudyResponseType[] = studySnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as StudyResponseType))
+
+            const allClasses: StudyType[] = []
+            studyData.forEach(classItem => {
+                classItem.dates.forEach(d => {
+                    allClasses.push({
+                        id: classItem.id,
+                        class_code: classItem.class_code,
+                        class_name: classItem.class_name,
+                        room: classItem.room,
+                        sec: d.sec,
+                        professor_name: classItem.professor_name,
+                        day: d.day,
+                        start: d.start,
+                        end: d.end,
+                        userId: classItem.userId
+                    })
+                })
+            })
+
+            const formatDate = new Date(date.split('/').reverse().join('-'))
+            const dayOfWeek = formatDate.toLocaleDateString('th-TH', { weekday: 'long' }).replace('วัน', '')
+            const classOnDay = allClasses.filter(cls => cls.day === dayOfWeek)
+
+            return !!classOnDay.find(cls => cls.start < end && cls.end > start)
+        } catch (error) {
+            console.log('Error validating study plan time:', error)
+            return false
+        }
+    }
+
     const handleSave = async () => {
         if (!formData.start || !formData.end) {
             Alert.alert('ข้อผิดพลาด', 'กรุณาเลือกเวลาเริ่มต้นและเวลาสิ้นสุด')
@@ -90,7 +130,7 @@ export default function StudyPlanModal({ visible, onClose, selectStudyPlan, onSu
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกหัวข้อแผนการเรียน')
             return
         }
-        
+
         const isOverlap = isEditing ?
             allPlan.find(p => {
                 return p.date === formData.date && p.start < (formData.end ?? 9.0) && p.end > (formData.start ?? 8.0) && p.id !== selectStudyPlan?.id
@@ -104,13 +144,21 @@ export default function StudyPlanModal({ visible, onClose, selectStudyPlan, onSu
             return
         }
 
+        if (formData.date && formData.start !== undefined && formData.end !== undefined) {
+            const isOverlapClass = await validateOverlapWithClass(formData.date, formData.start, formData.end)
+            if (isOverlapClass) {
+                Alert.alert('ข้อผิดพลาด', 'แผนการเรียนนี้มีเวลาซ้อนกับตารางเรียน')
+                return
+            }
+        }
+
         try {
             setIsSaving(true)
 
             if (isEditing && selectStudyPlan) {
                 await setDoc(doc(db, 'users', auth.currentUser?.uid as string, 'study_plans', selectStudyPlan.id), {
                     ...formData,
-                } as StudyPlanType, {merge: true})
+                } as StudyPlanType, { merge: true })
             } else {
                 await addDoc(collection(db, 'users', auth.currentUser?.uid as string, 'study_plans'), {
                     ...formData,
