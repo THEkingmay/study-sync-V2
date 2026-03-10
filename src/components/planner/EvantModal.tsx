@@ -16,8 +16,9 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker'
 import THEME from "../../../theme"
 import type { EvenType } from "../../screens/PlannerScreen"
-import { addDoc, collection, doc, setDoc } from "firebase/firestore"
+import { addDoc, collection, doc, getDocs, setDoc } from "firebase/firestore"
 import { auth, db } from "../../../firebaseConfig"
+import { StudyResponseType, StudyType } from "../../screens/TimetableScreen"
 
 interface EventModalProps {
     visible: boolean
@@ -46,7 +47,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             setFormData({
                 title: selectedEvent?.title || '',
                 date: selectedEvent?.date || undefined,
-                start: selectedEvent?.start || selectedEvent?.start === 0 ? 0 : undefined,
+                start: selectedEvent?.start || (selectedEvent?.start === 0 ? 0 : undefined),
                 end: selectedEvent?.end || undefined,
                 description: selectedEvent?.description || '',
             })
@@ -79,6 +80,55 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
         }
     }
 
+
+    const validateDateAndTimeAndOverlapingClass = async (date : string , start : number , end : number) => {
+        if(!date || start === undefined || end === undefined) return false
+        try{
+            
+            const userId = auth.currentUser?.uid as string
+           const studySnap = await getDocs(collection(db, 'users', userId, 'class'));
+            const studyData: StudyResponseType[] = studySnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as StudyResponseType));
+            const allClasss : StudyType[] = []
+                studyData.forEach(classItem => {
+                classItem.dates.forEach(date => {
+                    allClasss.push({
+                    id: classItem.id,
+                    class_code: classItem.class_code,
+                    class_name: classItem.class_name,
+                    room: classItem.room,
+                    sec: date.sec,
+                    professor_name: classItem.professor_name,
+                    day: date.day,
+                    start: date.start,
+                    end: date.end,
+                    userId: classItem.userId
+                    })
+                })
+            })
+
+    
+            // ข้อมูลของ studyData จะมีตัวแปร dates เป็น array object ในรูป [{ day : 'จันทร์', start: 9.0, end: 12.0 }, ...] ซึ่งจะบอกว่าวันไหนเรียนกี่โมงถึงกี่โมง
+            // เราต้องมาเชคว่า วันที่เราเลือกมา มันตรงกับวันไหนของสัปดาห์ แล้วเอาเวลาที่เรียนในวันนั้นมาเชคว่ามันชนกับเวลาที่เราเลือกมั้ย
+            // date เป็นในรูปของ dd/mm/yyyy ต้องแปลงให้ตรง format 
+            const formatDate = new Date(date.split('/').reverse().join('-'))
+            const dayOfWeek = formatDate.toLocaleDateString('th-TH', { weekday: 'long' }).replace('วัน', '') // แปลงเป็นชื่อวันภาษาไทยแล้วเอาคำว่า "วัน" ออก
+            const classOnDayofWeek = allClasss.filter(study => study.day === dayOfWeek)
+            
+            const isOverlapingClass = classOnDayofWeek.find(study => {
+                return study.start < end && study.end > start
+            })
+
+            // console.log('Is overlapping with class:', !!isOverlapingClass)
+            return !!isOverlapingClass
+
+        }catch(error) {
+            console.log('Error validating event time:', error)
+            return false
+        }
+    }
     const handleSave = async () => {
         if (formData.start !== undefined && formData.end !== undefined && formData.start >= formData.end) {
             Alert.alert('ข้อผิดพลาด', 'เวลาเริ่มต้นต้องน้อยกว่าเวลาสิ้นสุด')
@@ -123,6 +173,12 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
                 createdAt : selectedEvent?.createdAt || new Date().toISOString()
             }
 
+            const isEventOverlapClass = await validateDateAndTimeAndOverlapingClass(payloadData.date, payloadData.start as number, payloadData.end as number)
+            if(isEventOverlapClass) {
+                Alert.alert('ข้อผิดพลาด', 'กิจกรรมนี้มีเวลาซ้อนกับตารางเรียน')
+                setIsSaving(false)
+                return
+            }
             // console.log("Payload data to save:", payloadData)
 
             if (isEditing && selectedEvent) {
