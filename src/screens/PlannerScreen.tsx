@@ -69,7 +69,7 @@ export default function PlannerScreen() {
                 const dateB = new Date(b.createdAt)
                 return dateB.getTime() - dateA.getTime()
             })
-
+            // console.log('Fetched events:', sortedEvents)
             setEvent(sortedEvents)
 
         } catch (error) {

@@ -89,7 +89,8 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             return
         }
         
-        if((formData.start === undefined && formData.end !== undefined) || (formData.start !== undefined && formData.end === undefined)) {
+        // ถ้าเลือกวันต้องเลือกเวลาด้วย ถ้าไม่เลือกอะไรเลย ต้องว่างทั้งสาม
+        if((formData.start === undefined && formData.end !== undefined) || (formData.start !== undefined && formData.end === undefined) || (!formData.date && ((formData.start !== undefined || formData.end !== undefined)))) {
             Alert.alert('ข้อผิดพลาด', 'กรุณากรอกเวลาเริ่มต้นและเวลาสิ้นสุดให้ครบถ้วน')
             return
         }
@@ -107,14 +108,13 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
             return
         }
 
-
-
         try {
             setIsSaving(true)
-
+            
+            // console.log("FormData ", formData   )
             const payloadData = {
                 date : formData.date || '',
-                start : formData.start || formData.start === 0 ? 0 : '',
+                start : formData.start || (formData.start === 0 ? 0 : ''),
                 end : formData.end || '',
                 title : formData.title || '',
                 description : formData.description || '',
@@ -123,7 +123,7 @@ export default function EventModal({ visible, onClose, selectedEvent, onSuccess,
                 createdAt : selectedEvent?.createdAt || new Date().toISOString()
             }
 
-        
+            // console.log("Payload data to save:", payloadData)
 
             if (isEditing && selectedEvent) {
                 await setDoc(doc(db, 'users', auth.currentUser?.uid as string, 'events', selectedEvent.id), {

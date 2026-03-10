@@ -473,7 +473,13 @@ export default function DashboardScreen({ navigation }: Props) {
       </View>
     );
   }
-
+  const formattimeString = (time: number) => {
+        if(time === 0) return '00:00'
+        const [hour, minute] = String(time).split('.')
+        const hourString = hour.padStart(2, '0')
+        const minuteString = minute ? minute.padEnd(2, '0').slice(0, 2) : '00';
+        return `${hourString}:${minuteString}`
+    }
 return (
   <SafeAreaView style={styles.container}>
     <QuickAddModal visible={openQuickAddModal} onClose={() => setOpenQuickAddModal(false)} onSuccess={() => { setOpenQuickAddModal(false); fetchEventSummary(true) }} />
@@ -514,7 +520,7 @@ return (
           <View style={[styles.card, styles.primaryCard]}>
             <View style={styles.cardHeader}>
               <Text style={styles.timeText}>
-                {nextClass.day} เวลา {nextClass.start} น. - {nextClass.end} น.
+              {nextClass.day} เวลา  {formattimeString(nextClass.start ?? 0)} น. - {formattimeString(nextClass.end ?? 0)} น.
               </Text>
             </View>
             <Text style={styles.courseName}>{nextClass.class_name}</Text>
@@ -562,7 +568,8 @@ return (
                       </View>
                       <Text style={styles.examName} numberOfLines={1}>{ex.class_name}</Text>
                     </View>
-                    <Text style={styles.examDetailText}>วันที่ {ex.date} | เวลา {ex.start} - {ex.end} น.</Text>
+                    <Text style={styles.examDetailText}>วันที่ {ex.date}</Text>
+                    <Text style={styles.examDetailText}>เวลา {formattimeString(ex.start ?? 0)} - {formattimeString(ex.end ?? 0) } น.</Text>
                     <Text style={styles.examDetailText}>ห้อง {ex.room || 'ไม่ระบุ'}</Text>
                   </View>
 
